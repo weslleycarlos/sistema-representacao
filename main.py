@@ -60,9 +60,13 @@ def adicionar_item():
         codigo = request.form['codigo']
         item = pedido_atual.empresa.get_item(codigo)
         if item:
-            # Criar dicionário de quantidades com base nos tamanhos disponíveis
-            quantidades = {tam: int(request.form.get(f"qtd_{tam}", 0)) for tam in item["tamanhos"]}
-            pedido_atual.adicionar_item(codigo, quantidades)
+            # Criar dicionário de quantidades, tratando campos vazios como 0
+            quantidades = {}
+            for tam in item["tamanhos"]:
+                valor = request.form.get(f"qtd_{tam}", "0")  # Pega como string
+                quantidades[tam] = int(valor) if valor.strip() else 0  # Converte ou usa 0 se vazio
+            if any(quantidades.values()):  # Só adiciona se pelo menos uma quantidade for > 0
+                pedido_atual.adicionar_item(codigo, quantidades)
     return redirect(url_for('pedido'))
 
 @app.route('/remover_item/<int:index>')
