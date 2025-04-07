@@ -4,6 +4,7 @@ from pedidos import Pedido
 
 app = Flask(__name__)
 
+# Carregar empresa inicial
 empresa1 = Empresa("Empresa A", "numerico")
 empresa1.carregar_catalogo("dados/empresa1.json")
 empresas = {"Empresa A": empresa1}
@@ -14,7 +15,7 @@ def index():
 
 @app.route('/pedido', methods=['POST'])
 def pedido():
-    empresa.nome = request.form['empresa']
+    empresa_nome = request.form['empresa']  # Corrigido: usar empresa_nome
     cnpj = request.form['cnpj']
     razao_social = request.form['razao']
     pedido_atual = Pedido(empresas[empresa_nome], razao_social, cnpj)
