@@ -3,20 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <title>Pedido</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Pedido para {{ pedido.razao_social }}</h1>
-    <p>Empresa: {{ pedido.empresa.nome }}</p>
-    <p>CNPJ: {{ pedido.cnpj }}</p>
+    <div class="container">
+        <h1>Pedido para {{ pedido.razao_social }}</h1>
+        <p>Empresa: {{ pedido.empresa.nome }} | CNPJ: {{ pedido.cnpj }}</p>
 
-    <form method="POST" action="/adicionar_item">
-        <label for="codigo">Código do Item:</label>
-        <input type="text" name="codigo" id="codigo"><br><br>
+        <h2>Itens do Pedido</h2>
+        <table class="pedido-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Quantidade</th>
+                    <th>Valor Unitário</th>
+                    <th>Total</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pedido.itens %}
+                <tr>
+                    <td>{{ item.codigo }}</td>
+                    <td>{{ item.descritivo }}</td>
+                    <td>{{ item.quantidades['unico'] }}</td>
+                    <td>R$ {{ "%.2f" % item.valor_unit }}</td>
+                    <td>R$ {{ "%.2f" % item.total }}</td>
+                    <td>
+                        <a href="/remover_item/{{ loop.index0 }}" class="btn btn-danger" onclick="return confirm('Remover este item?')">Remover</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-        <label for="qtd">Quantidade (Tam. 2):</label>
-        <input type="number" name="qtd" id="qtd"><br><br>
-
-        <input type="submit" value="Adicionar Item">
-    </form>
+        <form method="POST" action="/adicionar_item" class="add-item-form">
+            <h3>Adicionar Item</h3>
+            <label for="codigo">Código:</label>
+            <input type="text" name="codigo" id="codigo"><br>
+            <label for="qtd">Quantidade:</label>
+            <input type="number" name="qtd" id="qtd"><br>
+            <input type="submit" value="Adicionar" class="btn btn-primary">
+        </form>
+    </div>
 </body>
 </html>

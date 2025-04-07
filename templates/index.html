@@ -3,24 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <title>Sistema de Representação</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Sistema de Representação</h1>
-    <form method="POST" action="/pedido">
-        <label for="empresa">Empresa Representada:</label>
-        <select name="empresa" id="empresa">
-            {% for emp in empresas %}
-                <option value="{{ emp }}">{{ emp }}</option>
-            {% endfor %}
-        </select><br><br>
+    <div class="container">
+        <h1>Sistema de Representação</h1>
+        <form method="POST" action="/consultar_cnpj">
+            <label for="empresa">Empresa Representada:</label>
+            <select name="empresa" id="empresa">
+                {% for emp in empresas %}
+                    <option value="{{ emp }}">{{ emp }}</option>
+                {% endfor %}
+            </select><br><br>
 
-        <label for="cnpj">CNPJ da Loja:</label>
-        <input type="text" name="cnpj" id="cnpj"><br><br>
+            <label for="cnpj">CNPJ da Loja:</label>
+            <input type="text" name="cnpj" id="cnpj" value="{{ dados_loja.cnpj if dados_loja and 'cnpj' in dados_loja else '' }}">
+            <input type="submit" value="Consultar CNPJ" class="btn btn-primary"><br><br>
 
-        <label for="razao">Razão Social:</label>
-        <input type="text" name="razao" id="razao"><br><br>
+            <label for="razao">Razão Social:</label>
+            <input type="text" name="razao" id="razao" value="{{ dados_loja.nome if dados_loja and 'nome' in dados_loja else '' }}"><br><br>
 
-        <input type="submit" value="Iniciar Pedido">
-    </form>
+            {% if dados_loja and 'erro' in dados_loja %}
+                <p style="color: red;">Erro: {{ dados_loja.erro }}</p>
+            {% elif dados_loja %}
+                <p>Endereço: {{ dados_loja.logradouro }} {{ dados_loja.numero }}, {{ dados_loja.bairro }}, {{ dados_loja.municipio }} - {{ dados_loja.uf }}</p>
+            {% endif %}
+        </form>
+
+        <form method="POST" action="/pedido">
+            <input type="hidden" name="empresa" value="{{ request.form['empresa'] if request.form else '' }}">
+            <input type="hidden" name="cnpj" value="{{ dados_loja.cnpj if dados_loja and 'cnpj' in dados_loja else request.form['cnpj'] if request.form else '' }}">
+            <input type="hidden" name="razao" value="{{ dados_loja.nome if dados_loja and 'nome' in dados_loja else request.form['razao'] if request.form else '' }}">
+            <input type="submit" value="Iniciar Pedido" class="btn btn-primary">
+        </form>
+    </div>
 </body>
 </html>
