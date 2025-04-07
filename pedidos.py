@@ -8,9 +8,11 @@ class Pedido:
     def adicionar_item(self, codigo, quantidades):
         item = self.empresa.get_item(codigo)
         if item:
+            total = sum(quantidades.values()) * item["valor"]
             self.itens.append({
                 "codigo": codigo,
                 "descritivo": item["descritivo"],
                 "valor_unit": item["valor"],
-                "quantidades": quantidades
+                "quantidades": quantidades,
+                "total": total
             })

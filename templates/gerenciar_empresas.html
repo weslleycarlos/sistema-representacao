@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciar Empresas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Gerenciar Empresas Representadas</h1>
+        <h2>Empresas Cadastradas</h2>
+        <table class="pedido-table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Tipo de Grade</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nome, empresa in empresas.items() %}
+                <tr>
+                    <td>{{ nome }}</td>
+                    <td>{{ empresa.tipo_grade }}</td>
+                    <td>
+                        <a href="#" class="btn btn-primary">Editar</a> <!-- Futura implementação -->
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <form method="POST" class="add-item-form">
+            <h3>Adicionar Empresa</h3>
+            <label for="nome">Nome:</label>
+            <input type="text" name="nome" id="nome"><br>
+            <label for="tipo_grade">Tipo de Grade:</label>
+            <select name="tipo_grade" id="tipo_grade">
+                <option value="numerico">Numérico (2, 4, 6...)</option>
+                <option value="alfabetico">Alfabético (P, M, G...)</option>
+            </select><br>
+            <input type="submit" value="Adicionar" class="btn btn-primary">
+        </form>
+        <a href="/" class="btn btn-primary">Voltar</a>
+    </div>
+</body>
+</html>

@@ -16,7 +16,7 @@
                 <tr>
                     <th>Código</th>
                     <th>Descrição</th>
-                    <th>Quantidade</th>
+                    <th>Quantidades</th>
                     <th>Valor Unitário</th>
                     <th>Total</th>
                     <th>Ações</th>
@@ -27,7 +27,11 @@
                 <tr>
                     <td>{{ item.codigo }}</td>
                     <td>{{ item.descritivo }}</td>
-                    <td>{{ item.quantidades['unico'] }}</td>
+                    <td>
+                        {% for tam, qtd in item.quantidades.items() %}
+                            {{ tam }}: {{ qtd }}<br>
+                        {% endfor %}
+                    </td>
                     <td>R$ {{ "%.2f" % item.valor_unit }}</td>
                     <td>R$ {{ "%.2f" % item.total }}</td>
                     <td>
@@ -38,14 +42,44 @@
             </tbody>
         </table>
 
-        <form method="POST" action="/adicionar_item" class="add-item-form">
+        <form method="POST" action="/adicionar_item" class="add-item-form" id="add-item-form">
             <h3>Adicionar Item</h3>
             <label for="codigo">Código:</label>
-            <input type="text" name="codigo" id="codigo"><br>
-            <label for="qtd">Quantidade:</label>
-            <input type="number" name="qtd" id="qtd"><br>
+            <input type="text" name="codigo" id="codigo" onkeyup="buscarItem(this.value)"><br>
+            <label for="descritivo">Descrição:</label>
+            <input type="text" name="descritivo" id="descritivo" readonly><br>
+            <label for="valor_unit">Valor Unitário:</label>
+            <input type="text" name="valor_unit" id="valor_unit" readonly><br>
+            <div id="tamanhos"></div>
             <input type="submit" value="Adicionar" class="btn btn-primary">
         </form>
     </div>
+
+    <script>
+        function buscarItem(codigo) {
+            if (codigo.length > 2) {
+                fetch(`/buscar_item/{{ pedido.empresa.nome }}/${codigo}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.erro) {
+                            document.getElementById('descritivo').value = data.descritivo;
+                            document.getElementById('valor_unit').value = `R$ ${data.valor.toFixed(2)}`;
+                            const tamanhosDiv = document.getElementById('tamanhos');
+                            tamanhosDiv.innerHTML = '';
+                            data.tamanhos.forEach(tam => {
+                                tamanhosDiv.innerHTML += `
+                                    <label for="qtd_${tam}">Quantidade ${tam}:</label>
+                                    <input type="number" name="qtd_${tam}" id="qtd_${tam}" min="0"><br>
+                                `;
+                            });
+                        } else {
+                            document.getElementById('descritivo').value = '';
+                            document.getElementById('valor_unit').value = '';
+                            document.getElementById('tamanhos').innerHTML = '';
+                        }
+                    });
+            }
+        }
+    </script>
 </body>
 </html>
