@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Pedido</title>
+</head>
+<body>
+    <h1>Pedido para {{ pedido.razao_social }}</h1>
+    <p>Empresa: {{ pedido.empresa.nome }}</p>
+    <p>CNPJ: {{ pedido.cnpj }}</p>
+
+    <form method="POST" action="/adicionar_item">
+        <label for="codigo">Código do Item:</label>
+        <input type="text" name="codigo" id="codigo"><br><br>
+
+        <label for="qtd">Quantidade (Tam. 2):</label>
+        <input type="number" name="qtd" id="qtd"><br><br>
+
+        <input type="submit" value="Adicionar Item">
+    </form>
+</body>
+</html>

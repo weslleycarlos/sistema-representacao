@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema de Representação</title>
+</head>
+<body>
+    <h1>Sistema de Representação</h1>
+    <form method="POST" action="/pedido">
+        <label for="empresa">Empresa Representada:</label>
+        <select name="empresa" id="empresa">
+            {% for emp in empresas %}
+                <option value="{{ emp }}">{{ emp }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <label for="cnpj">CNPJ da Loja:</label>
+        <input type="text" name="cnpj" id="cnpj"><br><br>
+
+        <label for="razao">Razão Social:</label>
+        <input type="text" name="razao" id="razao"><br><br>
+
+        <input type="submit" value="Iniciar Pedido">
+    </form>
+</body>
+</html>
