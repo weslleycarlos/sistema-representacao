@@ -8,15 +8,13 @@ import logging
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = "P@$$w0rd"  # Necessário para sessões (mude para algo seguro)
-
+app.secret_key = "sua-chave-secreta-aqui"  # Mude para algo seguro
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 init_db()
 empresas = carregar_empresas()
 
-# Decorador para exigir login
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -26,7 +24,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Usuário e senha fixos (podemos mudar para banco depois)
 USUARIO_CORRETO = "admin"
 SENHA_CORRETA = "12345"
 
@@ -79,7 +76,7 @@ def consultar_cnpj(cnpj):
 @login_required
 def index():
     logger.info("Acessando a rota inicial")
-    empresa_selecionada = session.get('empresa_selecionada', list(empresas.keys())[0])  # Default para a primeira empresa
+    empresa_selecionada = session.get('empresa_selecionada', list(empresas.keys())[0])
     return render_template('index.html', empresas=empresas.keys(), dados_loja=None, empresa_selecionada=empresa_selecionada)
 
 @app.route('/consultar_cnpj', methods=['POST'])
@@ -90,22 +87,37 @@ def consultar_cnpj_route():
     empresa_selecionada = session.get('empresa_selecionada', list(empresas.keys())[0])
     return render_template('index.html', empresas=empresas.keys(), dados_loja=dados_loja, request=request, empresa_selecionada=empresa_selecionada)
 
-@app.route('/pedido', methods=['GET', 'POST'])
+@app.route('/lista_pedidos', methods=['GET'])
+@login_required
+def lista_pedidos():
+    empresa_selecionada = session.get('empresa_selecionada')
+    if not empresa_selecionada:
+        flash("Selecione uma empresa antes de continuar.", "warning")
+        return redirect(url_for('selecionar_empresa'))
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    c = conn.cursor()
+    c.execute("SELECT id, empresa_nome, cnpj, razao_social, itens FROM pedidos WHERE empresa_nome = %s ORDER BY id DESC", (empresa_selecionada,))
+    pedidos = [
+        {"id": row[0], "empresa_nome": row[1], "cnpj": row[2], "razao_social": row[3], "itens": json.loads(row[4])}
+        for row in c.fetchall()
+    ]
+    conn.close()
+    return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada)
+
+@app.route('/pedido', methods=['POST'])
 @login_required
 def pedido():
     empresa_selecionada = session.get('empresa_selecionada')
     if not empresa_selecionada:
         flash("Selecione uma empresa antes de continuar.", "warning")
         return redirect(url_for('selecionar_empresa'))
-    if request.method == 'POST' and 'empresa' in request.form:
-        empresa_nome = request.form['empresa']
+    if request.method == 'POST':
         cnpj = request.form['cnpj']
         razao_social = request.form['razao']
-        pedido_atual = Pedido(empresas[empresa_nome], razao_social, cnpj)
+        pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj)
         salvar_pedido(pedido_atual)
-    else:
-        pedido_atual = carregar_ultimo_pedido(empresas) or Pedido(empresas[empresa_selecionada], "Cliente Padrão", "00.000.000/0000-00")
-    return render_template('pedido.html', pedido=pedido_atual, empresa_selecionada=empresa_selecionada)
+        flash("Novo pedido criado com sucesso!", "success")
+    return redirect(url_for('lista_pedidos'))
 
 @app.route('/buscar_item/<empresa_nome>/<codigo>', methods=['GET'])
 @login_required
@@ -129,7 +141,7 @@ def adicionar_item():
             if any(quantidades.values()):
                 pedido_atual.adicionar_item(codigo, quantidades)
                 salvar_pedido(pedido_atual)
-    return redirect(url_for('pedido'))
+    return redirect(url_for('lista_pedidos'))
 
 @app.route('/remover_item/<int:index>')
 @login_required
@@ -138,7 +150,22 @@ def remover_item(index):
     if pedido_atual and 0 <= index < len(pedido_atual.itens):
         pedido_atual.itens.pop(index)
         salvar_pedido(pedido_atual)
-    return redirect(url_for('pedido'))
+    return redirect(url_for('lista_pedidos'))
+
+TIPOS_GRADE = ["numerico", "alfabetico", "misto"]  # Lista mutável
+
+@app.route('/gerenciar_grades', methods=['GET', 'POST'])
+@login_required
+def gerenciar_grades():
+    if request.method == 'POST':
+        novo_tipo = request.form['novo_tipo']
+        if novo_tipo and novo_tipo not in TIPOS_GRADE:
+            TIPOS_GRADE.append(novo_tipo)
+            flash(f"Tipo de grade '{novo_tipo}' adicionado!", "success")
+        else:
+            flash("Tipo de grade inválido ou já existente.", "danger")
+    return render_template('gerenciar_grades.html', tipos_grade=TIPOS_GRADE)
+
 
 @app.route('/gerenciar_empresas', methods=['GET', 'POST'])
 @login_required
@@ -147,7 +174,11 @@ def gerenciar_empresas():
         if 'nome' in request.form and 'tipo_grade' in request.form:
             nome = request.form['nome']
             tipo_grade = request.form['tipo_grade']
-            salvar_empresa(nome, tipo_grade)
+            if tipo_grade not in TIPOS_GRADE:
+                flash("Tipo de grade inválido.", "danger")
+            else:
+                salvar_empresa(nome, tipo_grade)
+                flash("Empresa salva com sucesso!", "success")
         elif 'empresa_nome' in request.form and 'codigo' in request.form:
             empresa_nome = request.form['empresa_nome']
             codigo = request.form['codigo']
@@ -155,11 +186,12 @@ def gerenciar_empresas():
             valor = float(request.form['valor'])
             tamanhos = request.form['tamanhos'].split(',')
             salvar_item_catalogo(empresa_nome, codigo, descritivo, valor, tamanhos)
+            flash("Item salvo com sucesso!", "success")
         global empresas
         empresas = carregar_empresas()
     catalogos = {nome: carregar_catalogo(nome) for nome in empresas.keys()}
     empresa_selecionada = session.get('empresa_selecionada', list(empresas.keys())[0])
-    return render_template('gerenciar_empresas.html', empresas=empresas, catalogos=catalogos, empresa_selecionada=empresa_selecionada)
+    return render_template('gerenciar_empresas.html', empresas=empresas, catalogos=catalogos, empresa_selecionada=empresa_selecionada, tipos_grade=TIPOS_GRADE)
 
 @app.route('/remover_item_catalogo/<empresa_nome>/<codigo>', methods=['POST'])
 @login_required
@@ -168,6 +200,9 @@ def remover_item_catalogo_route(empresa_nome, codigo):
     global empresas
     empresas = carregar_empresas()
     return redirect(url_for('gerenciar_empresas'))
+
+
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

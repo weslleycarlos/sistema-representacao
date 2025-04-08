@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar Grades - Sistema de Representação{% endblock %}
+{% block content %}
+    <div class="container mt-3">
+        <h1>Gerenciar Grades</h1>
+
+        <h2>Adicionar Novo Tipo de Grade</h2>
+        <form method="POST" action="{{ url_for('gerenciar_grades') }}" class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label for="novo_tipo" class="form-label">Novo Tipo:</label>
+                <input type="text" class="form-control" id="novo_tipo" name="novo_tipo" required>
+            </div>
+            <div class="col-md-6 align-self-end">
+                <button type="submit" class="btn btn-primary">Adicionar</button>
+            </div>
+        </form>
+
+        <h2>Tipos de Grade Cadastrados</h2>
+        {% if tipos_grade %}
+            <ul class="list-group">
+                {% for tipo in tipos_grade %}
+                    <li class="list-group-item">{{ tipo }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Nenhum tipo de grade cadastrado.</p>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -12,7 +12,11 @@
             </div>
             <div class="col-md-4">
                 <label for="tipo_grade" class="form-label">Tipo de Grade:</label>
-                <input type="text" class="form-control" id="tipo_grade" name="tipo_grade" required>
+                <select class="form-select" id="tipo_grade" name="tipo_grade" required>
+                    {% for tipo in tipos_grade %}
+                        <option value="{{ tipo }}">{{ tipo }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="col-md-4 align-self-end">
                 <button type="submit" class="btn btn-primary">Salvar Empresa</button>
