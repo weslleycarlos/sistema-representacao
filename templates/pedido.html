@@ -56,6 +56,13 @@
     </div>
 
     <script>
+                    document.getElementById('add-item-form').onsubmit = function() {
+                const inputs = document.querySelectorAll('#tamanhos input[type="number"]');
+                inputs.forEach(input => {
+                    if (!input.value) input.value = 0;
+                });
+                return true;
+            };
         function buscarItem(codigo) {
             if (codigo.length > 2) {
                 fetch(`/buscar_item/{{ pedido.empresa.nome }}/${codigo}`)
