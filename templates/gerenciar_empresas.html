@@ -1,74 +1,84 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Gerenciar Empresas</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <h1>Gerenciar Empresas</h1>
-    <a href="{{ url_for('index') }}">Voltar ao Início</a>
+{% extends "base.html" %}
+{% block title %}Gerenciar Empresas - Sistema de Representação{% endblock %}
+{% block content %}
+    <div class="container mt-3">
+        <h1>Gerenciar Empresas</h1>
 
-    <h2>Adicionar ou Editar Empresa</h2>
-    <form method="POST" action="{{ url_for('gerenciar_empresas') }}">
-        <label for="nome">Nome da Empresa:</label>
-        <input type="text" id="nome" name="nome" required><br>
-        <label for="tipo_grade">Tipo de Grade:</label>
-        <input type="text" id="tipo_grade" name="tipo_grade" required><br>
-        <button type="submit">Salvar Empresa</button>
-    </form>
+        <h2>Adicionar ou Editar Empresa</h2>
+        <form method="POST" action="{{ url_for('gerenciar_empresas') }}" class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label for="nome" class="form-label">Nome da Empresa:</label>
+                <input type="text" class="form-control" id="nome" name="nome" required>
+            </div>
+            <div class="col-md-4">
+                <label for="tipo_grade" class="form-label">Tipo de Grade:</label>
+                <input type="text" class="form-control" id="tipo_grade" name="tipo_grade" required>
+            </div>
+            <div class="col-md-4 align-self-end">
+                <button type="submit" class="btn btn-primary">Salvar Empresa</button>
+            </div>
+        </form>
 
-    <h2>Empresas Cadastradas</h2>
-    <table border="1">
-        <tr>
-            <th>Nome</th>
-            <th>Tipo de Grade</th>
-            <th>Catálogo</th>
-        </tr>
+        <h2>Empresas Cadastradas</h2>
         {% for nome, empresa in empresas.items() %}
-        <tr>
-            <td>{{ empresa.nome }}</td>
-            <td>{{ empresa.tipo_grade }}</td>
-            <td>
-                <h3>Itens do Catálogo</h3>
-                <table border="1">
-                    <tr>
-                        <th>Código</th>
-                        <th>Descritivo</th>
-                        <th>Valor</th>
-                        <th>Tamanhos</th>
-                        <th>Ação</th>
-                    </tr>
-                    {% for item in catalogos[empresa.nome] %}
-                    <tr>
-                        <td>{{ item.codigo }}</td>
-                        <td>{{ item.descritivo }}</td>
-                        <td>{{ item.valor }}</td>
-                        <td>{{ item.tamanhos|join(', ') }}</td>
-                        <td>
-                            <form method="POST" action="{{ url_for('remover_item_catalogo_route', empresa_nome=empresa.nome, codigo=item.codigo) }}">
-                                <button type="submit">Remover</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </table>
-                <h4>Adicionar ou Editar Item</h4>
-                <form method="POST" action="{{ url_for('gerenciar_empresas') }}">
-                    <input type="hidden" name="empresa_nome" value="{{ empresa.nome }}">
-                    <label for="codigo">Código:</label>
-                    <input type="text" name="codigo" required><br>
-                    <label for="descritivo">Descritivo:</label>
-                    <input type="text" name="descritivo" required><br>
-                    <label for="valor">Valor:</label>
-                    <input type="number" step="0.01" name="valor" required><br>
-                    <label for="tamanhos">Tamanhos (separados por vírgula):</label>
-                    <input type="text" name="tamanhos" required placeholder="ex: 2,4,6"><br>
-                    <button type="submit">Salvar Item</button>
-                </form>
-            </td>
-        </tr>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3>{{ empresa.nome }} ({{ empresa.tipo_grade }})</h3>
+                </div>
+                <div class="card-body">
+                    <h4>Itens do Catálogo</h4>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descritivo</th>
+                                <th>Valor</th>
+                                <th>Tamanhos</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in catalogos[empresa.nome] %}
+                            <tr>
+                                <td>{{ item.codigo }}</td>
+                                <td>{{ item.descritivo }}</td>
+                                <td>{{ item.valor }}</td>
+                                <td>{{ item.tamanhos|join(', ') }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('remover_item_catalogo_route', empresa_nome=empresa.nome, codigo=item.codigo) }}" style="display:inline;">
+                                        <button type="submit" class="btn btn-danger btn-sm">Remover</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <h4>Adicionar ou Editar Item</h4>
+                    <form method="POST" action="{{ url_for('gerenciar_empresas') }}" class="row g-3">
+                        <input type="hidden" name="empresa_nome" value="{{ empresa.nome }}">
+                        <div class="col-md-2">
+                            <label for="codigo" class="form-label">Código:</label>
+                            <input type="text" class="form-control" name="codigo" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="descritivo" class="form-label">Descritivo:</label>
+                            <input type="text" class="form-control" name="descritivo" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="valor" class="form-label">Valor:</label>
+                            <input type="number" step="0.01" class="form-control" name="valor" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="tamanhos" class="form-label">Tamanhos:</label>
+                            <input type="text" class="form-control" name="tamanhos" required placeholder="ex: 2,4,6">
+                        </div>
+                        <div class="col-md-2 align-self-end">
+                            <button type="submit" class="btn btn-success">Salvar Item</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         {% endfor %}
-    </table>
-</body>
-</html>
+    </div>
+{% endblock %}

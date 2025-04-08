@@ -1,92 +1,79 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <title>Pedido</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <h1>Pedido para {{ pedido.razao_social }}</h1>
-        <p>Empresa: {{ pedido.empresa.nome }} | CNPJ: {{ pedido.cnpj }}</p>
+{% extends "base.html" %}
+{% block title %}Novo Pedido - Sistema de Representação{% endblock %}
+{% block content %}
+    <div class="container mt-3">
+        <h1>Novo Pedido - {{ pedido.empresa.nome }}</h1>
+        <form method="POST" action="{{ url_for('pedido') }}" class="mb-3">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="empresa" class="form-label">Empresa:</label>
+                    <select class="form-select" id="empresa" name="empresa" disabled>
+                        <option value="{{ pedido.empresa.nome }}" selected>{{ pedido.empresa.nome }}</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="cnpj" class="form-label">CNPJ:</label>
+                    <input type="text" class="form-control" id="cnpj" name="cnpj" value="{{ pedido.cnpj }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="razao" class="form-label">Razão Social:</label>
+                    <input type="text" class="form-control" id="razao" name="razao" value="{{ pedido.razao_social }}" required>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Atualizar Dados do Pedido</button>
+                </div>
+            </div>
+        </form>
 
         <h2>Itens do Pedido</h2>
-        <table class="pedido-table">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Descrição</th>
-                    <th>Quantidades</th>
-                    <th>Valor Unitário</th>
-                    <th>Total</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in pedido.itens %}
-                <tr>
-                    <td>{{ item.codigo }}</td>
-                    <td>{{ item.descritivo }}</td>
-                    <td>
-                        {% for tam, qtd in item.quantidades.items() %}
-                            {{ tam }}: {{ qtd }}<br>
-                        {% endfor %}
-                    </td>
-                    <td>R$ {{ "%.2f" % item.valor_unit }}</td>
-                    <td>R$ {{ "%.2f" % item.total }}</td>
-                    <td>
-                        <a href="/remover_item/{{ loop.index0 }}" class="btn btn-danger" onclick="return confirm('Remover este item?')">Remover</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        {% if pedido.itens %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descritivo</th>
+                        <th>Quantidades</th>
+                        <th>Valor Unitário</th>
+                        <th>Total</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i, item in pedido.itens|enumerate %}
+                    <tr>
+                        <td>{{ item.codigo }}</td>
+                        <td>{{ pedido.empresa.catalogo[item.codigo].descritivo }}</td>
+                        <td>{{ item.quantidades|join(', ') }}</td>
+                        <td>{{ pedido.empresa.catalogo[item.codigo].valor }}</td>
+                        <td>{{ "%.2f"|format((pedido.empresa.catalogo[item.codigo].valor * item.quantidades.values()|sum)) }}</td>
+                        <td>
+                            <a href="{{ url_for('remover_item', index=i) }}" class="btn btn-danger btn-sm">Remover</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>Nenhum item adicionado ao pedido.</p>
+        {% endif %}
 
-        <form method="POST" action="/adicionar_item" class="add-item-form" id="add-item-form">
-            <h3>Adicionar Item</h3>
-            <label for="codigo">Código:</label>
-            <input type="text" name="codigo" id="codigo" onkeyup="buscarItem(this.value)"><br>
-            <label for="descritivo">Descrição:</label>
-            <input type="text" name="descritivo" id="descritivo" readonly><br>
-            <label for="valor_unit">Valor Unitário:</label>
-            <input type="text" name="valor_unit" id="valor_unit" readonly><br>
-            <div id="tamanhos"></div>
-            <input type="submit" value="Adicionar" class="btn btn-primary">
+        <h2>Adicionar Item</h2>
+        <form method="POST" action="{{ url_for('adicionar_item') }}" class="row g-3">
+            <div class="col-md-3">
+                <label for="codigo" class="form-label">Código:</label>
+                <input type="text" class="form-control" id="codigo" name="codigo" required>
+            </div>
+            {% if pedido.empresa.catalogo %}
+                {% for tam in pedido.empresa.catalogo.values()|first.tamanhos %}
+                <div class="col-md-2">
+                    <label for="qtd_{{ tam }}" class="form-label">Qtd {{ tam }}:</label>
+                    <input type="number" class="form-control" id="qtd_{{ tam }}" name="qtd_{{ tam }}" min="0" value="0">
+                </div>
+                {% endfor %}
+            {% endif %}
+            <div class="col-12">
+                <button type="submit" class="btn btn-success">Adicionar Item</button>
+            </div>
         </form>
     </div>
-
-    <script>
-                    document.getElementById('add-item-form').onsubmit = function() {
-                const inputs = document.querySelectorAll('#tamanhos input[type="number"]');
-                inputs.forEach(input => {
-                    if (!input.value) input.value = 0;
-                });
-                return true;
-            };
-        function buscarItem(codigo) {
-            if (codigo.length > 2) {
-                fetch(`/buscar_item/{{ pedido.empresa.nome }}/${codigo}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!data.erro) {
-                            document.getElementById('descritivo').value = data.descritivo;
-                            document.getElementById('valor_unit').value = `R$ ${data.valor.toFixed(2)}`;
-                            const tamanhosDiv = document.getElementById('tamanhos');
-                            tamanhosDiv.innerHTML = '';
-                            data.tamanhos.forEach(tam => {
-                                tamanhosDiv.innerHTML += `
-                                    <label for="qtd_${tam}">Quantidade ${tam}:</label>
-                                    <input type="number" name="qtd_${tam}" id="qtd_${tam}" min="0"><br>
-                                `;
-                            });
-                        } else {
-                            document.getElementById('descritivo').value = '';
-                            document.getElementById('valor_unit').value = '';
-                            document.getElementById('tamanhos').innerHTML = '';
-                        }
-                    });
-            }
-        }
-    </script>
-</body>
-</html>
+{% endblock %}
