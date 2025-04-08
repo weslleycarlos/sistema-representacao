@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from empresas import Empresa
 from pedidos import Pedido
-from database import init_db, carregar_empresas, salvar_pedido, carregar_ultimo_pedido, salvar_empresa  # Adicionado salvar_empresa
+from database import init_db, carregar_empresas, salvar_pedido, carregar_ultimo_pedido, salvar_empresa, carregar_catalogo, salvar_item_catalogo, remover_item_catalogo
 import requests
 import os
 import logging
@@ -82,12 +82,30 @@ def remover_item(index):
 @app.route('/gerenciar_empresas', methods=['GET', 'POST'])
 def gerenciar_empresas():
     if request.method == 'POST':
-        nome = request.form['nome']
-        tipo_grade = request.form['tipo_grade']
-        salvar_empresa(nome, tipo_grade)  # Usando a função do database.py
+        if 'nome' in request.form and 'tipo_grade' in request.form:  # Adicionar/editar empresa
+            nome = request.form['nome']
+            tipo_grade = request.form['tipo_grade']
+            salvar_empresa(nome, tipo_grade)
+        elif 'empresa_nome' in request.form and 'codigo' in request.form:  # Adicionar/editar item do catálogo
+            empresa_nome = request.form['empresa_nome']
+            codigo = request.form['codigo']
+            descritivo = request.form['descritivo']
+            valor = float(request.form['valor'])
+            tamanhos = request.form['tamanhos'].split(',')  # Espera tamanhos como "2,4,6"
+            salvar_item_catalogo(empresa_nome, codigo, descritivo, valor, tamanhos)
         global empresas
         empresas = carregar_empresas()
-    return render_template('gerenciar_empresas.html', empresas=empresas)
+    
+    # Carregar catálogos para todas as empresas
+    catalogos = {nome: carregar_catalogo(nome) for nome in empresas.keys()}
+    return render_template('gerenciar_empresas.html', empresas=empresas, catalogos=catalogos)
+
+@app.route('/remover_item_catalogo/<empresa_nome>/<codigo>', methods=['POST'])
+def remover_item_catalogo_route(empresa_nome, codigo):
+    remover_item_catalogo(empresa_nome, codigo)
+    global empresas
+    empresas = carregar_empresas()
+    return redirect(url_for('gerenciar_empresas'))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

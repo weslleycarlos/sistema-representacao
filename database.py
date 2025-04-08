@@ -4,7 +4,7 @@ import json
 from empresas import Empresa
 from pedidos import Pedido
 
-# Use a connection string do pooler
+# Connection string do pooler (substitua [SUA-SENHA])
 DB_CONNECTION_STRING = "postgresql://postgres.qesszwlqxftxdomreawa:Maccol#1992#@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
 
 def init_db():
@@ -72,5 +72,37 @@ def salvar_empresa(nome, tipo_grade):
     c = conn.cursor()
     c.execute("INSERT INTO empresas (nome, tipo_grade) VALUES (%s, %s) ON CONFLICT (nome) DO UPDATE SET tipo_grade = %s",
               (nome, tipo_grade, tipo_grade))
+    conn.commit()
+    conn.close()
+
+# Novas funções para o catálogo
+def carregar_catalogo(empresa_nome):
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    c = conn.cursor()
+    c.execute("SELECT codigo, descritivo, valor, tamanhos FROM catalogo WHERE empresa_nome = %s", (empresa_nome,))
+    catalogo = [
+        {"codigo": row[0], "descritivo": row[1], "valor": row[2], "tamanhos": json.loads(row[3])}
+        for row in c.fetchall()
+    ]
+    conn.close()
+    return catalogo
+
+def salvar_item_catalogo(empresa_nome, codigo, descritivo, valor, tamanhos):
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    c = conn.cursor()
+    tamanhos_json = json.dumps(tamanhos)
+    c.execute("""
+        INSERT INTO catalogo (empresa_nome, codigo, descritivo, valor, tamanhos) 
+        VALUES (%s, %s, %s, %s, %s) 
+        ON CONFLICT (empresa_nome, codigo) 
+        DO UPDATE SET descritivo = %s, valor = %s, tamanhos = %s
+    """, (empresa_nome, codigo, descritivo, valor, tamanhos_json, descritivo, valor, tamanhos_json))
+    conn.commit()
+    conn.close()
+
+def remover_item_catalogo(empresa_nome, codigo):
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    c = conn.cursor()
+    c.execute("DELETE FROM catalogo WHERE empresa_nome = %s AND codigo = %s", (empresa_nome, codigo))
     conn.commit()
     conn.close()
