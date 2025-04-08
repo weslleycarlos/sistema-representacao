@@ -54,7 +54,7 @@
 
     <!-- Modal para Novo Pedido -->
     <div class="modal fade" id="novoPedidoModal" tabindex="-1" aria-labelledby="novoPedidoModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl"> <!-- Aumentado para modal-xl -->
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="novoPedidoModalLabel">Novo Pedido</h5>
@@ -81,7 +81,7 @@
                                 <tr>
                                     <th>Código</th>
                                     <th>Descrição</th>
-                                    <th>Quantidade</th>
+                                    <th>Quantidades</th>
                                     <th>Valor Unitário</th>
                                     <th>Total</th>
                                     <th>Ação</th>
@@ -102,6 +102,8 @@
     </div>
 
     <script>
+        let itemCount = 0;
+
         function consultarCnpj() {
             const cnpj = document.getElementById('cnpj').value;
             fetch('/consultar_cnpj', {
@@ -124,17 +126,18 @@
             const tbody = document.querySelector('#tabelaItens tbody');
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><input type="text" name="codigo[]" class="form-control" onblur="buscarItem(this)" required></td>
+                <td><input type="text" name="codigo[]" class="form-control" onblur="buscarItem(this, ${itemCount})" required></td>
                 <td><input type="text" name="descritivo[]" class="form-control" readonly></td>
-                <td><input type="number" name="quantidade[]" class="form-control" min="0" oninput="calcularTotal(this)" required></td>
+                <td id="quantidades-${itemCount}"></td>
                 <td><input type="text" name="valor_unit[]" class="form-control" readonly></td>
                 <td><input type="text" name="total[]" class="form-control" readonly></td>
                 <td><button type="button" class="btn btn-danger btn-sm" onclick="removerItem(this)">Remover</button></td>
             `;
             tbody.appendChild(row);
+            itemCount++;
         }
 
-        function buscarItem(input) {
+        function buscarItem(input, index) {
             const codigo = input.value;
             if (codigo) {
                 fetch(`/buscar_item/{{ empresa_selecionada }}/${codigo}`)
@@ -146,18 +149,30 @@
                             const row = input.parentElement.parentElement;
                             row.querySelector('input[name="descritivo[]"]').value = data.descritivo;
                             row.querySelector('input[name="valor_unit[]"]').value = data.valor;
-                            calcularTotal(row.querySelector('input[name="quantidade[]"]'));
+                            const quantidadesCell = row.querySelector(`#quantidades-${index}`);
+                            quantidadesCell.innerHTML = '';
+                            data.tamanhos.forEach(tam => {
+                                quantidadesCell.innerHTML += `
+                                    <div class="input-group mb-1">
+                                        <span class="input-group-text">${tam}</span>
+                                        <input type="number" name="qtd_${index}_${tam}" class="form-control" min="0" oninput="calcularTotal(this, ${index})">
+                                    </div>
+                                `;
+                            });
                         }
                     })
                     .catch(error => alert('Erro ao buscar item: ' + error));
             }
         }
 
-        function calcularTotal(input) {
-            const row = input.parentElement.parentElement;
-            const quantidade = parseInt(input.value) || 0;
+        function calcularTotal(input, index) {
+            const row = input.parentElement.parentElement.parentElement.parentElement;
             const valorUnit = parseFloat(row.querySelector('input[name="valor_unit[]"]').value) || 0;
-            const total = quantidade * valorUnit;
+            let total = 0;
+            row.querySelectorAll(`input[name^="qtd_${index}_"]`).forEach(qtdInput => {
+                const qtd = parseInt(qtdInput.value) || 0;
+                total += qtd * valorUnit;
+            });
             row.querySelector('input[name="total[]"]').value = total.toFixed(2);
         }
 

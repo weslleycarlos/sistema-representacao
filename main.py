@@ -81,7 +81,7 @@ def consultar_cnpj(cnpj):
 def consultar_cnpj_route():
     cnpj = request.form['cnpj']
     dados = consultar_cnpj(cnpj)
-    return jsonify(dados)  # Retorna JSON para uso no modal
+    return jsonify(dados)
 
 @app.route('/', methods=['GET'])
 @login_required
@@ -118,15 +118,16 @@ def pedido():
         razao_social = request.form['razao']
         itens = []
         codigos = request.form.getlist('codigo[]')
-        quantidades = request.form.getlist('quantidade[]')
         for i, codigo in enumerate(codigos):
-            if codigo and int(quantidades[i]) > 0:
+            if codigo:
                 item = empresas[empresa_selecionada].get_item(codigo)
                 if item:
-                    itens.append({
-                        "codigo": codigo,
-                        "quantidades": {tam: (int(quantidades[i]) if tam == "unico" else 0) for tam in item["tamanhos"]}
-                    })
+                    quantidades = {tam: int(request.form.get(f"qtd_{i}_{tam}", "0") or "0") for tam in item["tamanhos"]}
+                    if any(quantidades.values()):
+                        itens.append({"codigo": codigo, "quantidades": quantidades})
+        if not itens:
+            flash("Adicione pelo menos um item ao pedido.", "warning")
+            return redirect(url_for('lista_pedidos'))
         pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj)
         for item in itens:
             pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
