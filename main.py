@@ -99,11 +99,26 @@ def lista_pedidos():
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
     c.execute("SELECT id, empresa_nome, cnpj, razao_social, itens FROM pedidos WHERE empresa_nome = %s ORDER BY id DESC", (empresa_selecionada,))
-    pedidos = [
-        {"id": row[0], "empresa_nome": row[1], "cnpj": row[2], "razao_social": row[3], "itens": json.loads(row[4])}
-        for row in c.fetchall()
-    ]
+    pedidos_raw = c.fetchall()
     conn.close()
+    
+    pedidos = []
+    for row in pedidos_raw:
+        itens = json.loads(row[4])
+        total = 0
+        for item in itens:
+            codigo = item['codigo']
+            quantidades = item['quantidades']
+            valor_unit = empresas[empresa_selecionada].catalogo.get(codigo, {}).get('valor', 0)
+            total += valor_unit * sum(quantidades.values())
+        pedidos.append({
+            "id": row[0],
+            "empresa_nome": row[1],
+            "cnpj": row[2],
+            "razao_social": row[3],
+            "itens": itens,
+            "total": total
+        })
     return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas)
 
 @app.route('/pedido', methods=['POST'])
