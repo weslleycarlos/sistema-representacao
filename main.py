@@ -5,10 +5,16 @@ from database import init_db, carregar_empresas, salvar_pedido, carregar_ultimo_
 import requests
 import os
 import logging
+import psycopg2
+import json
 from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = "sua-chave-secreta-aqui"  # Mude para algo seguro
+
+# Definir DB_CONNECTION_STRING (substitua [SUA-SENHA])
+DB_CONNECTION_STRING = "postgresql://postgres.qesszwlqxftxdomreawa:Maccol#1992#@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -102,7 +108,7 @@ def lista_pedidos():
         for row in c.fetchall()
     ]
     conn.close()
-    return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada)
+    return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas)  # Adicionado empresas
 
 @app.route('/pedido', methods=['POST'])
 @login_required
@@ -152,20 +158,7 @@ def remover_item(index):
         salvar_pedido(pedido_atual)
     return redirect(url_for('lista_pedidos'))
 
-TIPOS_GRADE = ["numerico", "alfabetico", "misto"]  # Lista mutável
-
-@app.route('/gerenciar_grades', methods=['GET', 'POST'])
-@login_required
-def gerenciar_grades():
-    if request.method == 'POST':
-        novo_tipo = request.form['novo_tipo']
-        if novo_tipo and novo_tipo not in TIPOS_GRADE:
-            TIPOS_GRADE.append(novo_tipo)
-            flash(f"Tipo de grade '{novo_tipo}' adicionado!", "success")
-        else:
-            flash("Tipo de grade inválido ou já existente.", "danger")
-    return render_template('gerenciar_grades.html', tipos_grade=TIPOS_GRADE)
-
+TIPOS_GRADE = ["numerico", "alfabetico", "misto"]
 
 @app.route('/gerenciar_empresas', methods=['GET', 'POST'])
 @login_required
@@ -201,8 +194,17 @@ def remover_item_catalogo_route(empresa_nome, codigo):
     empresas = carregar_empresas()
     return redirect(url_for('gerenciar_empresas'))
 
-
-
+@app.route('/gerenciar_grades', methods=['GET', 'POST'])
+@login_required
+def gerenciar_grades():
+    if request.method == 'POST':
+        novo_tipo = request.form['novo_tipo']
+        if novo_tipo and novo_tipo not in TIPOS_GRADE:
+            TIPOS_GRADE.append(novo_tipo)
+            flash(f"Tipo de grade '{novo_tipo}' adicionado!", "success")
+        else:
+            flash("Tipo de grade inválido ou já existente.", "danger")
+    return render_template('gerenciar_grades.html', tipos_grade=TIPOS_GRADE)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
