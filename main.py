@@ -1,20 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from empresas import Empresa
 from pedidos import Pedido
-from database import init_db, carregar_empresas, salvar_pedido, carregar_ultimo_pedido  # Removido migrar_dados_iniciais
+from database import init_db, carregar_empresas, salvar_pedido, carregar_ultimo_pedido, salvar_empresa  # Adicionado salvar_empresa
 import requests
-import sqlite3
 import os
 import logging
 
 app = Flask(__name__)
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Inicializar banco e carregar dados
-init_db()  # init_db agora inclui os dados iniciais
+init_db()
 empresas = carregar_empresas()
 
 def consultar_cnpj(cnpj):
@@ -87,11 +84,7 @@ def gerenciar_empresas():
     if request.method == 'POST':
         nome = request.form['nome']
         tipo_grade = request.form['tipo_grade']
-        conn = sqlite3.connect('sistema.db')
-        c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO empresas (nome, tipo_grade) VALUES (?, ?)", (nome, tipo_grade))
-        conn.commit()
-        conn.close()
+        salvar_empresa(nome, tipo_grade)  # Usando a função do database.py
         global empresas
         empresas = carregar_empresas()
     return render_template('gerenciar_empresas.html', empresas=empresas)
