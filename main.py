@@ -1,15 +1,20 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from empresas import Empresa
 from pedidos import Pedido
-from database import init_db, migrar_dados_iniciais, carregar_empresas, salvar_pedido, carregar_ultimo_pedido
+from database import init_db, carregar_empresas, salvar_pedido, carregar_ultimo_pedido  # Removido migrar_dados_iniciais
 import requests
-import sqlite3  # Adicionado import do sqlite3
+import sqlite3
+import os
+import logging
 
 app = Flask(__name__)
 
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Inicializar banco e carregar dados
-init_db()
-migrar_dados_iniciais()
+init_db()  # init_db agora inclui os dados iniciais
 empresas = carregar_empresas()
 
 def consultar_cnpj(cnpj):
@@ -26,6 +31,7 @@ def consultar_cnpj(cnpj):
 
 @app.route('/', methods=['GET'])
 def index():
+    logger.info("Acessando a rota inicial")
     return render_template('index.html', empresas=empresas.keys(), dados_loja=None)
 
 @app.route('/consultar_cnpj', methods=['POST'])
@@ -86,9 +92,10 @@ def gerenciar_empresas():
         c.execute("INSERT OR REPLACE INTO empresas (nome, tipo_grade) VALUES (?, ?)", (nome, tipo_grade))
         conn.commit()
         conn.close()
-        global empresas  # Atualiza a variável global
+        global empresas
         empresas = carregar_empresas()
     return render_template('gerenciar_empresas.html', empresas=empresas)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)

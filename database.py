@@ -1,4 +1,4 @@
-# database.py (versão final)
+# database.py
 import sqlite3
 import json
 from empresas import Empresa
@@ -17,21 +17,12 @@ def init_db():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, empresa_nome TEXT, cnpj TEXT,
                   razao_social TEXT, itens TEXT,
                   FOREIGN KEY (empresa_nome) REFERENCES empresas(nome))''')
-    conn.commit()
-    conn.close()
-
-def migrar_dados_iniciais():
-    conn = sqlite3.connect('sistema.db')
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM empresas WHERE nome = 'Empresa A'")
-    if c.fetchone()[0] == 0:
-        c.execute("INSERT INTO empresas (nome, tipo_grade) VALUES (?, ?)", ("Empresa A", "numerico"))
-        with open('dados/empresa1.json', 'r') as f:
-            catalogo = json.load(f)
-            for codigo, item in catalogo.items():
-                tamanhos_json = json.dumps(item["tamanhos"])
-                c.execute("INSERT INTO catalogo (empresa_nome, codigo, descritivo, valor, tamanhos) VALUES (?, ?, ?, ?, ?)",
-                          ("Empresa A", codigo, item["descritivo"], item["valor"], tamanhos_json))
+    # Dados iniciais fixos
+    c.execute("INSERT OR IGNORE INTO empresas (nome, tipo_grade) VALUES (?, ?)", ("Empresa A", "numerico"))
+    c.execute("INSERT OR IGNORE INTO catalogo (empresa_nome, codigo, descritivo, valor, tamanhos) VALUES (?, ?, ?, ?, ?)",
+              ("Empresa A", "1018A", "KIT ESSENCIAL TRADICIONAL", 129.49, '["2", "4", "6"]'))
+    c.execute("INSERT OR IGNORE INTO catalogo (empresa_nome, codigo, descritivo, valor, tamanhos) VALUES (?, ?, ?, ?, ?)",
+              ("Empresa A", "1052", "KIT CONFORT COM LATERAIS TRADICIONAIS", 237.49, '["2", "4", "6"]'))
     conn.commit()
     conn.close()
 
@@ -59,7 +50,7 @@ def salvar_pedido(pedido):
     conn.close()
     return c.lastrowid
 
-def carregar_ultimo_pedido(empresas):  # Adicionado parâmetro 'empresas'
+def carregar_ultimo_pedido(empresas):
     conn = sqlite3.connect('sistema.db')
     c = conn.cursor()
     c.execute("SELECT empresa_nome, cnpj, razao_social, itens FROM pedidos ORDER BY id DESC LIMIT 1")
