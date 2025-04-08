@@ -11,8 +11,6 @@ from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = "sua-chave-secreta-aqui"  # Mude para algo seguro
-
-# Definir DB_CONNECTION_STRING (substitua [SUA-SENHA])
 DB_CONNECTION_STRING = "postgresql://postgres.qesszwlqxftxdomreawa:Maccol#1992#@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
 
 logging.basicConfig(level=logging.INFO)
@@ -78,20 +76,18 @@ def consultar_cnpj(cnpj):
     except Exception as e:
         return {"erro": str(e)}
 
-@app.route('/', methods=['GET'])
-@login_required
-def index():
-    logger.info("Acessando a rota inicial")
-    empresa_selecionada = session.get('empresa_selecionada', list(empresas.keys())[0])
-    return render_template('index.html', empresas=empresas.keys(), dados_loja=None, empresa_selecionada=empresa_selecionada)
-
 @app.route('/consultar_cnpj', methods=['POST'])
 @login_required
 def consultar_cnpj_route():
     cnpj = request.form['cnpj']
-    dados_loja = consultar_cnpj(cnpj)
+    dados = consultar_cnpj(cnpj)
+    return jsonify(dados)  # Retorna JSON para uso no modal
+
+@app.route('/', methods=['GET'])
+@login_required
+def index():
     empresa_selecionada = session.get('empresa_selecionada', list(empresas.keys())[0])
-    return render_template('index.html', empresas=empresas.keys(), dados_loja=dados_loja, request=request, empresa_selecionada=empresa_selecionada)
+    return render_template('index.html', empresas=empresas.keys(), dados_loja=None, empresa_selecionada=empresa_selecionada)
 
 @app.route('/lista_pedidos', methods=['GET'])
 @login_required
@@ -108,7 +104,7 @@ def lista_pedidos():
         for row in c.fetchall()
     ]
     conn.close()
-    return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas)  # Adicionado empresas
+    return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas)
 
 @app.route('/pedido', methods=['POST'])
 @login_required
@@ -120,7 +116,20 @@ def pedido():
     if request.method == 'POST':
         cnpj = request.form['cnpj']
         razao_social = request.form['razao']
+        itens = []
+        codigos = request.form.getlist('codigo[]')
+        quantidades = request.form.getlist('quantidade[]')
+        for i, codigo in enumerate(codigos):
+            if codigo and int(quantidades[i]) > 0:
+                item = empresas[empresa_selecionada].get_item(codigo)
+                if item:
+                    itens.append({
+                        "codigo": codigo,
+                        "quantidades": {tam: (int(quantidades[i]) if tam == "unico" else 0) for tam in item["tamanhos"]}
+                    })
         pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj)
+        for item in itens:
+            pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
         salvar_pedido(pedido_atual)
         flash("Novo pedido criado com sucesso!", "success")
     return redirect(url_for('lista_pedidos'))

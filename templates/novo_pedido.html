@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Novo Pedido - Sistema de Representação{% endblock %}
+{% block content %}
+    <div class="container mt-3">
+        <h1>Novo Pedido - {{ empresa_selecionada }}</h1>
+        <form method="POST" action="{{ url_for('novo_pedido') }}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="cnpj" class="form-label">CNPJ:</label>
+                    <input type="text" class="form-control" id="cnpj" name="cnpj" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="razao" class="form-label">Razão Social:</label>
+                    <input type="text" class="form-control" id="razao" name="razao" required>
+                </div>
+            </div>
+            <h2 class="mt-4">Itens do Pedido</h2>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descrição</th>
+                        <th>Quantidade</th>
+                        <th>Valor Unitário</th>
+                        <th>Total</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="itens-pedido">
+                </tbody>
+            </table>
+            <button type="button" class="btn btn-primary mb-3" onclick="adicionarItem()">Adicionar Item</button>
+            <button type="submit" class="btn btn-success">Salvar Pedido</button>
+        </form>
+    </div>
+    <script>
+        function adicionarItem() {
+            var table = document.getElementById('itens-pedido');
+            var row = table.insertRow(-1);
+            var cell1 = row.insertCell(0);
+            var cell2 = row.insertCell(1);
+            var cell3 = row.insertCell(2);
+            var cell4 = row.insertCell(3);
+            var cell5 = row.insertCell(4);
+            var cell6 = row.insertCell(5);
+            cell1.innerHTML = '<input type="text" name="codigo[]" class="form-control" onblur="buscarProduto(this)" required>';
+            cell2.innerHTML = '<input type="text" name="descritivo[]" class="form-control" readonly>';
+            cell3.innerHTML = '<input type="number" name="quantidade[]" class="form-control" min="0" required>';
+            cell4.innerHTML = '<input type="text" name="valor_unit[]" class="form-control" readonly>';
+            cell5.innerHTML = '<input type="text" name="total[]" class="form-control" readonly>';
+            cell6.innerHTML = '<button type="button" class="btn btn-danger btn-sm" onclick="removerItem(this)">Remover</button>';
+        }
+        function buscarProduto(input) {
+            var codigo = input.value;
+            if (codigo) {
+                fetch('/buscar_produto/' + codigo)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.erro) {
+                            alert(data.erro);
+                        } else {
+                            var row = input.parentNode.parentNode;
+                            row.cells[1].firstChild.value = data.descritivo;
+                            row.cells[3].firstChild.value = data.valor;
+                        }
+                    });
+            }
+        }
+        function removerItem(btn) {
+            var row = btn.parentNode.parentNode;
+            row.parentNode.removeChild(row);
+        }
+    </script>
+{% endblock %}

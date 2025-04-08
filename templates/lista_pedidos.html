@@ -54,29 +54,115 @@
 
     <!-- Modal para Novo Pedido -->
     <div class="modal fade" id="novoPedidoModal" tabindex="-1" aria-labelledby="novoPedidoModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="novoPedidoModalLabel">Novo Pedido</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="{{ url_for('pedido') }}">
+                <form method="POST" action="{{ url_for('pedido') }}" id="formNovoPedido">
                     <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="cnpj" class="form-label">CNPJ:</label>
-                            <input type="text" class="form-control" id="cnpj" name="cnpj" required>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="cnpj" class="form-label">CNPJ:</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="cnpj" name="cnpj" required>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="consultarCnpj()">Consultar</button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="razao" class="form-label">Razão Social:</label>
+                                <input type="text" class="form-control" id="razao" name="razao" required>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="razao" class="form-label">Razão Social:</label>
-                            <input type="text" class="form-control" id="razao" name="razao" required>
-                        </div>
+                        <h4 class="mt-4">Itens do Pedido</h4>
+                        <table class="table table-striped" id="tabelaItens">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th>Quantidade</th>
+                                    <th>Valor Unitário</th>
+                                    <th>Total</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                        <button type="button" class="btn btn-primary mb-3" onclick="adicionarItem()">Adicionar Item</button>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Criar Pedido</button>
+                        <button type="submit" class="btn btn-success">Criar Pedido</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+
+    <script>
+        function consultarCnpj() {
+            const cnpj = document.getElementById('cnpj').value;
+            fetch('/consultar_cnpj', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'cnpj=' + encodeURIComponent(cnpj)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.erro) {
+                    alert(data.erro);
+                } else {
+                    document.getElementById('razao').value = data.nome || '';
+                }
+            })
+            .catch(error => alert('Erro ao consultar CNPJ: ' + error));
+        }
+
+        function adicionarItem() {
+            const tbody = document.querySelector('#tabelaItens tbody');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input type="text" name="codigo[]" class="form-control" onblur="buscarItem(this)" required></td>
+                <td><input type="text" name="descritivo[]" class="form-control" readonly></td>
+                <td><input type="number" name="quantidade[]" class="form-control" min="0" oninput="calcularTotal(this)" required></td>
+                <td><input type="text" name="valor_unit[]" class="form-control" readonly></td>
+                <td><input type="text" name="total[]" class="form-control" readonly></td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="removerItem(this)">Remover</button></td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function buscarItem(input) {
+            const codigo = input.value;
+            if (codigo) {
+                fetch(`/buscar_item/{{ empresa_selecionada }}/${codigo}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.erro) {
+                            alert(data.erro);
+                        } else {
+                            const row = input.parentElement.parentElement;
+                            row.querySelector('input[name="descritivo[]"]').value = data.descritivo;
+                            row.querySelector('input[name="valor_unit[]"]').value = data.valor;
+                            calcularTotal(row.querySelector('input[name="quantidade[]"]'));
+                        }
+                    })
+                    .catch(error => alert('Erro ao buscar item: ' + error));
+            }
+        }
+
+        function calcularTotal(input) {
+            const row = input.parentElement.parentElement;
+            const quantidade = parseInt(input.value) || 0;
+            const valorUnit = parseFloat(row.querySelector('input[name="valor_unit[]"]').value) || 0;
+            const total = quantidade * valorUnit;
+            row.querySelector('input[name="total[]"]').value = total.toFixed(2);
+        }
+
+        function removerItem(button) {
+            button.parentElement.parentElement.remove();
+        }
+    </script>
 {% endblock %}
