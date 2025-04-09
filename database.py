@@ -16,8 +16,6 @@ def init_db():
                     endereco TEXT,
                     email TEXT,
                     telefone TEXT)''')
-    
-    # Adicionar colunas novas à tabela empresas, se necessário
     c.execute("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS endereco TEXT")
     c.execute("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS email TEXT")
     c.execute("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS telefone TEXT")
@@ -58,6 +56,17 @@ def init_db():
                     FOREIGN KEY (cnpj_loja) REFERENCES lojas(cnpj),
                     FOREIGN KEY (forma_pagamento_id) REFERENCES formas_pagamento(id))''')
     
+    # Adicionar colunas novas à tabela pedidos, se necessário
+    c.execute("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cnpj_loja TEXT")
+    c.execute("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS data_compra TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    c.execute("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS forma_pagamento_id INTEGER")
+    c.execute("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS desconto REAL DEFAULT 0")
+    
+    # Adicionar chaves estrangeiras (se ainda não existirem)
+    c.execute("ALTER TABLE pedidos ADD FOREIGN KEY (empresa_nome) REFERENCES empresas(nome) ON DELETE CASCADE")
+    c.execute("ALTER TABLE pedidos ADD FOREIGN KEY (cnpj_loja) REFERENCES lojas(cnpj) ON DELETE CASCADE")
+    c.execute("ALTER TABLE pedidos ADD FOREIGN KEY (forma_pagamento_id) REFERENCES formas_pagamento(id) ON DELETE SET NULL")
+    
     # Tabela usuarios (sem mudanças)
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
                     id SERIAL PRIMARY KEY,
@@ -73,6 +82,8 @@ def init_db():
     
     conn.commit()
     conn.close()
+
+# ... (resto do código do database.py permanece igual)
 
 def salvar_empresa(nome, tipo_grade, endereco='', email='', telefone=''):
     conn = psycopg2.connect(DB_CONNECTION_STRING)
