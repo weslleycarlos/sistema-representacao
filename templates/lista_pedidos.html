@@ -44,82 +44,110 @@
             <p>Nenhum pedido registrado para esta empresa.</p>
         {% endif %}
     </div>
-
-    <!-- Modal para Novo Pedido -->
-    <div class="modal fade" id="novoPedidoModal" tabindex="-1" aria-labelledby="novoPedidoModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="novoPedidoModalLabel">Novo Pedido</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form method="POST" action="{{ url_for('pedido') }}" id="formNovoPedido" onsubmit="return validarFormulario()">
-                    <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="cnpj" class="form-label">CNPJ:</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="cnpj" name="cnpj" required>
-                                    <button type="button" class="btn btn-outline-secondary" onclick="consultarCnpj()">Consultar</button>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="razao" class="form-label">Razão Social:</label>
-                                <input type="text" class="form-control" id="razao" name="razao" required>
-                            </div>
-                        </div>
-                        <h4 class="mt-4">Itens do Pedido</h4>
-                        <table class="table table-striped" id="tabelaItens">
-                            <thead>
-                                <tr>
-                                    <th>Código</th>
-                                    <th>Descrição</th>
-                                    <th>Quantidades</th>
-                                    <th>Valor Unitário</th>
-                                    <th>Total</th>
-                                    <th>Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            </tbody>
-                        </table>
-                        <button type="button" class="btn btn-primary mb-3" onclick="adicionarItem()">Adicionar Item</button>
-                        <div class="row">
-                            <div class="col-md-12 text-end">
-                                <label class="form-label fw-bold">Total Geral:</label>
-                                <input type="text" id="totalGeral" class="form-control d-inline-block w-25" readonly value="0.00">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-success">Criar Pedido</button>
-                    </div>
-                </form>
+<!-- Modal para Novo Pedido -->
+<div class="modal fade" id="novoPedidoModal" tabindex="-1" aria-labelledby="novoPedidoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novoPedidoModalLabel">Novo Pedido</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <form method="POST" action="{{ url_for('pedido') }}" id="formNovoPedido" onsubmit="return validarFormulario()">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="cnpj" class="form-label">CNPJ:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="cnpj" name="cnpj" required>
+                                <button type="button" class="btn btn-outline-secondary" onclick="consultarCnpj()">Consultar</button>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <label for="razao" class="form-label">Razão Social:</label>
+                            <input type="text" class="form-control" id="razao" name="razao" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="endereco" class="form-label">Endereço:</label>
+                            <input type="text" class="form-control" id="endereco" name="endereco">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="email" class="form-label">E-mail:</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="telefone" class="form-label">Telefone:</label>
+                            <input type="text" class="form-control" id="telefone" name="telefone">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="forma_pagamento" class="form-label">Forma de Pagamento:</label>
+                            <select class="form-select" id="forma_pagamento" name="forma_pagamento" required>
+                                {% for fp in formas_pagamento %}
+                                    <option value="{{ fp.id }}">{{ fp.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="desconto" class="form-label">Desconto (R$):</label>
+                            <input type="number" class="form-control" id="desconto" name="desconto" step="0.01" min="0" value="0.00">
+                        </div>
+                    </div>
+                    <h4 class="mt-4">Itens do Pedido</h4>
+                    <table class="table table-striped" id="tabelaItens">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Quantidades</th>
+                                <th>Valor Unitário</th>
+                                <th>Total</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-primary mb-3" onclick="adicionarItem()">Adicionar Item</button>
+                    <div class="row">
+                        <div class="col-md-12 text-end">
+                            <label class="form-label fw-bold">Total Geral:</label>
+                            <input type="text" id="totalGeral" class="form-control d-inline-block w-25" readonly value="0.00">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Criar Pedido</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
-    <script>
+
+
+<script>
         let itemCount = 0;
 
         function consultarCnpj() {
-            const cnpj = document.getElementById('cnpj').value;
-            fetch('/consultar_cnpj', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'cnpj=' + encodeURIComponent(cnpj)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.erro) {
-                    alert(data.erro);
-                } else {
-                    document.getElementById('razao').value = data.nome || '';
-                }
-            })
-            .catch(error => alert('Erro ao consultar CNPJ: ' + error));
-        }
+        const cnpj = document.getElementById('cnpj').value;
+        fetch('/consultar_cnpj', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'cnpj=' + encodeURIComponent(cnpj)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.erro) {
+                alert(data.erro);
+            } else {
+                document.getElementById('razao').value = data.nome || '';
+                document.getElementById('endereco').value = data.logradouro + ', ' + data.numero + ' - ' + data.bairro + ', ' + data.municipio + ' - ' + data.uf || '';
+                document.getElementById('email').value = data.email || '';
+                document.getElementById('telefone').value = data.telefone || '';
+            }
+        })
+        .catch(error => alert('Erro ao consultar CNPJ: ' + error));
+    }
 
         function adicionarItem() {
             const tbody = document.querySelector('#tabelaItens tbody');

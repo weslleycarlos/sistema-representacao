@@ -1,35 +1,71 @@
 import psycopg2
 import json
 from empresas import Empresa
-from pedidos import Pedido
+from pedidos import Pedido, Item
 import bcrypt
-from config import DB_CONNECTION_STRING  # Importar do config.py
+from config import DB_CONNECTION_STRING
 
 def init_db():
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
+    
+    # Tabela empresas (representadas)
     c.execute('''CREATE TABLE IF NOT EXISTS empresas (
                     nome TEXT PRIMARY KEY,
-                    tipo_grade TEXT)''')
+                    tipo_grade TEXT,
+                    endereco TEXT,
+                    email TEXT,
+                    telefone TEXT)''')
+    
+    # Tabela catalogo (sem mudanças)
     c.execute('''CREATE TABLE IF NOT EXISTS catalogo (
                     empresa_nome TEXT,
                     codigo TEXT,
                     descritivo TEXT,
                     valor REAL,
                     tamanhos TEXT,
-                    PRIMARY KEY (empresa_nome, codigo))''')
+                    PRIMARY KEY (empresa_nome, codigo),
+                    FOREIGN KEY (empresa_nome) REFERENCES empresas(nome))''')
+    
+    # Tabela lojas (compradoras)
+    c.execute('''CREATE TABLE IF NOT EXISTS lojas (
+                    cnpj TEXT PRIMARY KEY,
+                    razao_social TEXT,
+                    endereco TEXT,
+                    email TEXT,
+                    telefone TEXT)''')
+    
+    # Tabela formas_pagamento
+    c.execute('''CREATE TABLE IF NOT EXISTS formas_pagamento (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT UNIQUE)''')
+    
+    # Tabela pedidos
     c.execute('''CREATE TABLE IF NOT EXISTS pedidos (
                     id SERIAL PRIMARY KEY,
                     empresa_nome TEXT,
-                    cnpj TEXT,
-                    razao_social TEXT,
-                    itens JSONB)''')
+                    cnpj_loja TEXT,
+                    data_compra TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    forma_pagamento_id INTEGER,
+                    desconto REAL DEFAULT 0,
+                    itens JSONB,
+                    FOREIGN KEY (empresa_nome) REFERENCES empresas(nome),
+                    FOREIGN KEY (cnpj_loja) REFERENCES lojas(cnpj),
+                    FOREIGN KEY (forma_pagamento_id) REFERENCES formas_pagamento(id))''')
+    
+    # Tabela usuarios (sem mudanças)
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
                     id SERIAL PRIMARY KEY,
                     usuario TEXT UNIQUE,
                     senha TEXT)''')
+    
+    # Inserir usuário padrão
     senha_hash = bcrypt.hashpw('12345'.encode('utf-8'), bcrypt.gensalt())
     c.execute("INSERT INTO usuarios (usuario, senha) VALUES ('admin', %s) ON CONFLICT (usuario) DO NOTHING", (senha_hash.decode('utf-8'),))
+    
+    # Inserir forma de pagamento padrão
+    c.execute("INSERT INTO formas_pagamento (nome) VALUES ('Boleto') ON CONFLICT (nome) DO NOTHING")
+    
     conn.commit()
     conn.close()
 
@@ -37,27 +73,35 @@ def init_db():
 def carregar_empresas():
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
-    c.execute("SELECT nome, tipo_grade FROM empresas")
-    empresas = {}
-    for nome, tipo_grade in c.fetchall():
-        empresa = Empresa(nome, tipo_grade)
-        c.execute("SELECT codigo, descritivo, valor, tamanhos FROM catalogo WHERE empresa_nome = %s", (nome,))
-        catalogo = {row[0]: {"descritivo": row[1], "valor": row[2], "tamanhos": json.loads(row[3])} for row in c.fetchall()}
-        empresa.catalogo = catalogo
-        empresas[nome] = empresa
+    c.execute("SELECT nome, tipo_grade, endereco, email, telefone FROM empresas")
+    empresas_dict = {}
+    for row in c.fetchall():
+        empresas_dict[row[0]] = Empresa(nome=row[0], tipo_grade=row[1], catalogo={}, endereco=row[2], email=row[3], telefone=row[4])
     conn.close()
-    return empresas
+    for empresa in empresas_dict.values():
+        empresa.catalogo = carregar_catalogo(empresa.nome)
+    return empresas_dict
+
+def salvar_empresa(nome, tipo_grade, endereco='', email='', telefone=''):
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    c = conn.cursor()
+    c.execute("INSERT INTO empresas (nome, tipo_grade, endereco, email, telefone) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (nome) DO UPDATE SET tipo_grade = %s, endereco = %s, email = %s, telefone = %s",
+              (nome, tipo_grade, endereco, email, telefone, tipo_grade, endereco, email, telefone))
+    conn.commit()
+    conn.close()
 
 def salvar_pedido(pedido):
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
-    itens_json = json.dumps(pedido.itens)
-    c.execute("INSERT INTO pedidos (empresa_nome, cnpj, razao_social, itens) VALUES (%s, %s, %s, %s) RETURNING id",
-              (pedido.empresa.nome, pedido.cnpj, pedido.razao_social, itens_json))
-    pedido_id = c.fetchone()[0]
+    # Salvar loja se não existir
+    c.execute("INSERT INTO lojas (cnpj, razao_social) VALUES (%s, %s) ON CONFLICT (cnpj) DO UPDATE SET razao_social = %s",
+              (pedido.cnpj, pedido.razao_social, pedido.razao_social))
+    # Salvar pedido
+    c.execute("INSERT INTO pedidos (empresa_nome, cnpj_loja, data_compra, forma_pagamento_id, desconto, itens) VALUES (%s, %s, CURRENT_TIMESTAMP, %s, %s, %s) RETURNING id",
+              (pedido.empresa.nome, pedido.cnpj, pedido.forma_pagamento_id, pedido.desconto, json.dumps([item.to_dict() for item in pedido.itens])))
+    pedido.id = c.fetchone()[0]
     conn.commit()
     conn.close()
-    return pedido_id
 
 def carregar_ultimo_pedido(empresas):
     conn = psycopg2.connect(DB_CONNECTION_STRING)
@@ -72,13 +116,24 @@ def carregar_ultimo_pedido(empresas):
         return pedido
     return None
 
-def salvar_empresa(nome, tipo_grade):
+def carregar_ultimo_pedido(empresas):
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
-    c.execute("INSERT INTO empresas (nome, tipo_grade) VALUES (%s, %s) ON CONFLICT (nome) DO UPDATE SET tipo_grade = %s",
-              (nome, tipo_grade, tipo_grade))
-    conn.commit()
+    c.execute("SELECT id, empresa_nome, cnpj_loja, data_compra, forma_pagamento_id, desconto, itens FROM pedidos ORDER BY id DESC LIMIT 1")
+    row = c.fetchone()
     conn.close()
+    if row:
+        empresa = empresas.get(row[1])
+        if empresa:
+            pedido = Pedido(empresa, cnpj=row[2], razao_social='')  # Razão social será carregada da tabela lojas
+            pedido.id = row[0]
+            pedido.data_compra = row[3]
+            pedido.forma_pagamento_id = row[4]
+            pedido.desconto = row[5]
+            pedido.itens = [Item(codigo=item["codigo"], quantidades=item["quantidades"]) for item in json.loads(row[6])]
+            return pedido
+    return None
+
 
 # Novas funções para o catálogo
 def carregar_catalogo(empresa_nome):

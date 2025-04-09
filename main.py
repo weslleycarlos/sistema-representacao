@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash
 from empresas import Empresa
-from pedidos import Pedido
+from pedidos import Pedido, Item
 from database import init_db, carregar_empresas, salvar_pedido, carregar_ultimo_pedido, salvar_empresa, carregar_catalogo, salvar_item_catalogo, remover_item_catalogo
 import requests
 import os
@@ -109,28 +109,33 @@ def lista_pedidos():
         return redirect(url_for('selecionar_empresa'))
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
-    c.execute("SELECT id, empresa_nome, cnpj, razao_social, itens FROM pedidos WHERE empresa_nome = %s ORDER BY id DESC", (empresa_selecionada,))
+    c.execute("SELECT id, empresa_nome, cnpj_loja, data_compra, forma_pagamento_id, desconto, itens FROM pedidos WHERE empresa_nome = %s ORDER BY id DESC", (empresa_selecionada,))
     pedidos_raw = c.fetchall()
+    c.execute("SELECT id, nome FROM formas_pagamento")
+    formas_pagamento = [{"id": row[0], "nome": row[1]} for row in c.fetchall()]
     conn.close()
     
     pedidos = []
     for row in pedidos_raw:
-        itens = json.loads(row[4])
+        itens = json.loads(row[6])
         total = 0
         for item in itens:
             codigo = item['codigo']
             quantidades = item['quantidades']
             valor_unit = empresas[empresa_selecionada].catalogo.get(codigo, {}).get('valor', 0)
             total += valor_unit * sum(quantidades.values())
+        total -= row[5]  # Subtrair desconto
         pedidos.append({
             "id": row[0],
             "empresa_nome": row[1],
-            "cnpj": row[2],
-            "razao_social": row[3],
+            "cnpj_loja": row[2],
+            "data_compra": row[3],
+            "forma_pagamento_id": row[4],
+            "desconto": row[5],
             "itens": itens,
             "total": total
         })
-    return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas)
+    return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas, formas_pagamento=formas_pagamento)
 
 @app.route('/pedido', methods=['POST'])
 @login_required
@@ -142,6 +147,8 @@ def pedido():
     if request.method == 'POST':
         cnpj = request.form['cnpj']
         razao_social = request.form['razao']
+        forma_pagamento_id = int(request.form['forma_pagamento'])
+        desconto = float(request.form.get('desconto', 0.0))
         itens = []
         codigos = request.form.getlist('codigo[]')
         for i, codigo in enumerate(codigos):
@@ -154,7 +161,7 @@ def pedido():
         if not itens:
             flash("Adicione pelo menos um item ao pedido.", "warning")
             return redirect(url_for('lista_pedidos'))
-        pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj)
+        pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj, forma_pagamento_id, desconto)
         for item in itens:
             pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
         salvar_pedido(pedido_atual)
