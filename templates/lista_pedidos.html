@@ -123,7 +123,6 @@
     </div>
 </div>
 
-
 <script>
     let itemCount = 0;
 
@@ -214,6 +213,8 @@
         document.querySelectorAll('input[name="total[]"]').forEach(totalInput => {
             totalGeral += parseFloat(totalInput.value) || 0;
         });
+        const desconto = parseFloat(document.getElementById('desconto').value) || 0;
+        totalGeral -= desconto;
         document.getElementById('totalGeral').value = totalGeral.toFixed(2);
     }
 
@@ -226,6 +227,16 @@
         const tbody = document.querySelector('#tabelaItens tbody');
         if (tbody.children.length === 0) {
             alert('Adicione pelo menos um item ao pedido.');
+            return false;
+        }
+        let temQuantidade = false;
+        document.querySelectorAll('input[name^="qtd_"]').forEach(qtdInput => {
+            if (parseInt(qtdInput.value) > 0) {
+                temQuantidade = true;
+            }
+        });
+        if (!temQuantidade) {
+            alert('Adicione ao menos uma quantidade em algum item do pedido.');
             return false;
         }
         return true;

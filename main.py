@@ -155,15 +155,17 @@ def pedido():
         desconto = float(request.form.get('desconto', 0.0))
         itens = []
         codigos = request.form.getlist('codigo[]')
+        logger.info(f"Codigos recebidos: {codigos}")
         for i, codigo in enumerate(codigos):
             if codigo:
                 item = empresas[empresa_selecionada].get_item(codigo)
                 if item:
                     quantidades = {tam: int(request.form.get(f"qtd_{i}_{tam}", "0") or "0") for tam in item["tamanhos"]}
-                    if any(quantidades.values()):
+                    logger.info(f"Quantidades para {codigo}: {quantidades}")
+                    if any(qtd > 0 for qtd in quantidades.values()):
                         itens.append({"codigo": codigo, "quantidades": quantidades})
         if not itens:
-            flash("Adicione pelo menos um item ao pedido.", "warning")
+            flash("Adicione pelo menos um item com quantidade ao pedido.", "warning")
             return redirect(url_for('lista_pedidos'))
         pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj, forma_pagamento_id, desconto)
         for item in itens:
