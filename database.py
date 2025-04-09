@@ -148,10 +148,13 @@ def carregar_catalogo(empresa_nome):
     c.execute("SELECT codigo, descritivo, valor, tamanhos FROM catalogo WHERE empresa_nome = %s", (empresa_nome,))
     catalogo = {}
     for row in c.fetchall():
+        # Limpar a string de tamanhos removendo aspas extras e colchetes
+        tamanhos_str = row[3].replace('["', '').replace('"]', '').replace('"', '').strip()
+        tamanhos = [tam.strip() for tam in tamanhos_str.split(",")]
         catalogo[row[0]] = {
             "descritivo": row[1],
             "valor": float(row[2]),
-            "tamanhos": row[3].split(",")  # Converte a string de tamanhos em lista
+            "tamanhos": tamanhos  # Lista limpa: ["2", "4", "6"]
         }
     conn.close()
     return catalogo

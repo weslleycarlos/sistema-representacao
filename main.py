@@ -87,9 +87,9 @@ def consultar_cnpj(cnpj):
             dados = response.json()
             dados['cnpj'] = cnpj
             return dados
-        return {"erro": "CNPJ não encontrado ou limite excedido"}
+        return {"error": "CNPJ não encontrado ou limite excedido"}
     except Exception as e:
-        return {"erro": str(e)}
+        return {"error": str(e)}
 
 @app.route('/consultar_cnpj', methods=['POST'])
 @login_required
@@ -160,7 +160,9 @@ def pedido():
             if codigo:
                 item = empresas[empresa_selecionada].get_item(codigo)
                 if item:
-                    quantidades = {tam: int(request.form.get(f"qtd_{i}_{tam}", "0") or "0") for tam in item["tamanhos"]}
+                    # Usar tamanhos limpos do item
+                    tamanhos = item["tamanhos"]
+                    quantidades = {tam: int(request.form.get(f"qtd_{i}_{tam}", "0") or "0") for tam in tamanhos}
                     logger.info(f"Quantidades para {codigo}: {quantidades}")
                     if any(qtd > 0 for qtd in quantidades.values()):
                         itens.append({"codigo": codigo, "quantidades": quantidades})
@@ -177,17 +179,24 @@ def pedido():
 @app.route('/buscar_item/<empresa_nome>/<codigo>', methods=['GET'])
 @login_required
 def buscar_item(empresa_nome, codigo):
-    logger.info(f"Buscando item: empresa={empresa_nome}, codigo={codigo}")
-    empresa = empresas.get(empresa_nome)
-    if not empresa:
-        logger.error(f"Empresa {empresa_nome} não encontrada")
-        return jsonify({"erro": "Empresa não encontrada"}), 404
-    item = empresa.get_item(codigo)
-    if item:
-        logger.info(f"Item encontrado: {item}")
-        return jsonify(item)
-    logger.warning(f"Item {codigo} não encontrado no catálogo de {empresa_nome}")
-    return jsonify({"erro": "Item não encontrado"}), 404
+    try:
+        logger.info(f"Buscando item: empresa={empresa_nome}, codigo={codigo}")
+        empresa = empresas.get(empresa_nome)
+        if not empresa:
+            logger.error(f"Empresa {empresa_nome} não encontrada")
+            return jsonify({"erro": "Empresa não encontrada"}), 404
+        
+        logger.info(f"Catálogo da empresa {empresa_nome}: {empresa.catalogo}")
+        item = empresa.get_item(codigo)
+        if item:
+            logger.info(f"Item encontrado: {item}")
+            return jsonify(item)
+        
+        logger.warning(f"Item {codigo} não encontrado no catálogo de {empresa_nome}")
+        return jsonify({"erro": "Item não encontrado"}), 404
+    except Exception as e:
+        logger.error(f"Erro interno ao buscar item: {str(e)}", exc_info=True)
+        return jsonify({"erro": "Erro interno no servidor"}), 500
 
 
 @app.route('/adicionar_item', methods=['POST'])
