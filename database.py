@@ -1,12 +1,9 @@
-# database.py
 import psycopg2
 import json
 from empresas import Empresa
 from pedidos import Pedido
-import os
 import bcrypt
-
-DB_CONNECTION_STRING = os.getenv("DB_CONNECTION_STRING")
+from config import DB_CONNECTION_STRING  # Importar do config.py
 
 def init_db():
     conn = psycopg2.connect(DB_CONNECTION_STRING)
@@ -31,11 +28,11 @@ def init_db():
                     id SERIAL PRIMARY KEY,
                     usuario TEXT UNIQUE,
                     senha TEXT)''')
-    # Inserir usuário padrão com senha hasheada
     senha_hash = bcrypt.hashpw('12345'.encode('utf-8'), bcrypt.gensalt())
     c.execute("INSERT INTO usuarios (usuario, senha) VALUES ('admin', %s) ON CONFLICT (usuario) DO NOTHING", (senha_hash.decode('utf-8'),))
     conn.commit()
     conn.close()
+
 
 def carregar_empresas():
     conn = psycopg2.connect(DB_CONNECTION_STRING)

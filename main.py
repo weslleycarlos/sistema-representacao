@@ -6,19 +6,18 @@ import requests
 import os
 import logging
 import psycopg2
-import bcrypt
 import json
 from functools import wraps
-from dotenv import load_dotenv
-
-load_dotenv()
+import bcrypt
+from config import DB_CONNECTION_STRING  # Importar do config.py
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "P@ssw0rd2025")
-DB_CONNECTION_STRING = os.getenv("DB_CONNECTION_STRING")
+app.secret_key = os.getenv("SECRET_KEY", "sua-chave-secreta-aqui")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+logger.info(f"DB_CONNECTION_STRING carregada: {DB_CONNECTION_STRING}")
 
 init_db()
 empresas = carregar_empresas()
@@ -54,7 +53,6 @@ def login():
         else:
             flash("Usuário ou senha incorretos.", "danger")
     return render_template('login.html')
-
 
 
 @app.route('/selecionar_empresa', methods=['GET', 'POST'])
