@@ -124,11 +124,10 @@
 </div>
 
 
-
 <script>
-        let itemCount = 0;
+    let itemCount = 0;
 
-        function consultarCnpj() {
+    function consultarCnpj() {
         const cnpj = document.getElementById('cnpj').value;
         fetch('/consultar_cnpj', {
             method: 'POST',
@@ -149,82 +148,87 @@
         .catch(error => alert('Erro ao consultar CNPJ: ' + error));
     }
 
-        function adicionarItem() {
-            const tbody = document.querySelector('#tabelaItens tbody');
-            const row = document.createElement('tr');
-            const currentIndex = itemCount;
-            row.innerHTML = `
-                <td><input type="text" name="codigo[]" class="form-control" onblur="buscarItem(this, ${currentIndex})" required></td>
-                <td><input type="text" name="descritivo[]" class="form-control" readonly></td>
-                <td id="quantidades-${currentIndex}" class="d-flex flex-wrap gap-2"></td>
-                <td><input type="text" name="valor_unit[]" class="form-control" readonly></td>
-                <td><input type="text" name="total[]" class="form-control" readonly></td>
-                <td><button type="button" class="btn btn-danger btn-sm" onclick="removerItem(this)">Remover</button></td>
-            `;
-            tbody.appendChild(row);
-            itemCount++;
-        }
+    function adicionarItem() {
+        const tbody = document.querySelector('#tabelaItens tbody');
+        const row = document.createElement('tr');
+        const currentIndex = itemCount;
+        row.innerHTML = `
+            <td><input type="text" name="codigo[]" class="form-control" onblur="buscarItem(this, ${currentIndex})" required></td>
+            <td><input type="text" name="descritivo[]" class="form-control" readonly></td>
+            <td id="quantidades-${currentIndex}" class="d-flex flex-wrap gap-2"></td>
+            <td><input type="text" name="valor_unit[]" class="form-control" readonly></td>
+            <td><input type="text" name="total[]" class="form-control" readonly></td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="removerItem(this)">Remover</button></td>
+        `;
+        tbody.appendChild(row);
+        itemCount++;
+    }
 
-        function buscarItem(input, index) {
-            const codigo = input.value;
-            if (codigo) {
-                fetch(`/buscar_item/{{ empresa_selecionada }}/${codigo}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.erro) {
-                            alert(data.erro);
-                        } else {
-                            const row = input.closest('tr');
-                            row.querySelector('input[name="descritivo[]"]').value = data.descritivo;
-                            row.querySelector('input[name="valor_unit[]"]').value = data.valor;
-                            const quantidadesCell = row.querySelector(`#quantidades-${index}`);
-                            quantidadesCell.innerHTML = '';
-                            data.tamanhos.forEach(tam => {
-                                quantidadesCell.innerHTML += `
-                                    <div class="input-group" style="width: 120px;">
-                                        <span class="input-group-text">${tam}</span>
-                                        <input type="number" name="qtd_${index}_${tam}" class="form-control" min="0" oninput="calcularTotal(this, ${index})">
-                                    </div>
-                                `;
-                            });
-                        }
-                    })
-                    .catch(error => alert('Erro ao buscar item: ' + error));
-            }
+    function buscarItem(input, index) {
+        const codigo = input.value;
+        if (codigo) {
+            fetch(`/buscar_item/{{ empresa_selecionada }}/${codigo}`, { method: 'GET' })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro HTTP: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.erro) {
+                        alert(data.erro);
+                        return;
+                    }
+                    const row = input.closest('tr');
+                    row.querySelector('input[name="descritivo[]"]').value = data.descritivo;
+                    row.querySelector('input[name="valor_unit[]"]').value = data.valor;
+                    const quantidadesCell = row.querySelector(`#quantidades-${index}`);
+                    quantidadesCell.innerHTML = '';
+                    data.tamanhos.forEach(tam => {
+                        quantidadesCell.innerHTML += `
+                            <div class="input-group" style="width: 120px;">
+                                <span class="input-group-text">${tam}</span>
+                                <input type="number" name="qtd_${index}_${tam}" class="form-control" min="0" oninput="calcularTotal(this, ${index})">
+                            </div>
+                        `;
+                    });
+                })
+                .catch(error => alert('Erro ao buscar item: ' + error));
         }
+    }
 
-        function calcularTotal(input, index) {
-            const row = input.closest('tr');
-            const valorUnit = parseFloat(row.querySelector('input[name="valor_unit[]"]').value) || 0;
-            let total = 0;
-            row.querySelectorAll(`input[name^="qtd_${index}_"]`).forEach(qtdInput => {
-                const qtd = parseInt(qtdInput.value) || 0;
-                total += qtd * valorUnit;
-            });
-            row.querySelector('input[name="total[]"]').value = total.toFixed(2);
-            atualizarTotalGeral();
-        }
+    function calcularTotal(input, index) {
+        const row = input.closest('tr');
+        const valorUnit = parseFloat(row.querySelector('input[name="valor_unit[]"]').value) || 0;
+        let total = 0;
+        row.querySelectorAll(`input[name^="qtd_${index}_"]`).forEach(qtdInput => {
+            const qtd = parseInt(qtdInput.value) || 0;
+            total += qtd * valorUnit;
+        });
+        row.querySelector('input[name="total[]"]').value = total.toFixed(2);
+        atualizarTotalGeral();
+    }
 
-        function atualizarTotalGeral() {
-            let totalGeral = 0;
-            document.querySelectorAll('input[name="total[]"]').forEach(totalInput => {
-                totalGeral += parseFloat(totalInput.value) || 0;
-            });
-            document.getElementById('totalGeral').value = totalGeral.toFixed(2);
-        }
+    function atualizarTotalGeral() {
+        let totalGeral = 0;
+        document.querySelectorAll('input[name="total[]"]').forEach(totalInput => {
+            totalGeral += parseFloat(totalInput.value) || 0;
+        });
+        document.getElementById('totalGeral').value = totalGeral.toFixed(2);
+    }
 
-        function removerItem(button) {
-            button.closest('tr').remove();
-            atualizarTotalGeral();
-        }
+    function removerItem(button) {
+        button.closest('tr').remove();
+        atualizarTotalGeral();
+    }
 
-        function validarFormulario() {
-            const tbody = document.querySelector('#tabelaItens tbody');
-            if (tbody.children.length === 0) {
-                alert('Adicione pelo menos um item ao pedido.');
-                return false;
-            }
-            return true;
+    function validarFormulario() {
+        const tbody = document.querySelector('#tabelaItens tbody');
+        if (tbody.children.length === 0) {
+            alert('Adicione pelo menos um item ao pedido.');
+            return false;
         }
-    </script>
+        return true;
+    }
+</script>
 {% endblock %}

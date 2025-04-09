@@ -4,6 +4,9 @@ from empresas import Empresa
 from pedidos import Pedido, Item
 import bcrypt
 from config import DB_CONNECTION_STRING
+import logging
+
+logger = logging.getLogger(__name__)
 
 def init_db():
     conn = psycopg2.connect(DB_CONNECTION_STRING)
@@ -20,7 +23,7 @@ def init_db():
     c.execute("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS email TEXT")
     c.execute("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS telefone TEXT")
     
-    # Tabela catalogo (sem mudanças)
+    # Tabela catalogo
     c.execute('''CREATE TABLE IF NOT EXISTS catalogo (
                     empresa_nome TEXT,
                     codigo TEXT,
@@ -55,19 +58,15 @@ def init_db():
                     FOREIGN KEY (empresa_nome) REFERENCES empresas(nome),
                     FOREIGN KEY (cnpj_loja) REFERENCES lojas(cnpj),
                     FOREIGN KEY (forma_pagamento_id) REFERENCES formas_pagamento(id))''')
-    
-    # Adicionar colunas novas à tabela pedidos, se necessário
     c.execute("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cnpj_loja TEXT")
     c.execute("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS data_compra TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     c.execute("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS forma_pagamento_id INTEGER")
     c.execute("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS desconto REAL DEFAULT 0")
-    
-    # Adicionar chaves estrangeiras (se ainda não existirem)
     c.execute("ALTER TABLE pedidos ADD FOREIGN KEY (empresa_nome) REFERENCES empresas(nome) ON DELETE CASCADE")
     c.execute("ALTER TABLE pedidos ADD FOREIGN KEY (cnpj_loja) REFERENCES lojas(cnpj) ON DELETE CASCADE")
     c.execute("ALTER TABLE pedidos ADD FOREIGN KEY (forma_pagamento_id) REFERENCES formas_pagamento(id) ON DELETE SET NULL")
     
-    # Tabela usuarios (sem mudanças)
+    # Tabela usuarios
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
                     id SERIAL PRIMARY KEY,
                     usuario TEXT UNIQUE,
@@ -83,16 +82,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ... (resto do código do database.py permanece igual)
-
-def salvar_empresa(nome, tipo_grade, endereco='', email='', telefone=''):
-    conn = psycopg2.connect(DB_CONNECTION_STRING)
-    c = conn.cursor()
-    c.execute("INSERT INTO empresas (nome, tipo_grade, endereco, email, telefone) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (nome) DO UPDATE SET tipo_grade = %s, endereco = %s, email = %s, telefone = %s",
-              (nome, tipo_grade, endereco, email, telefone, tipo_grade, endereco, email, telefone))
-    conn.commit()
-    conn.close()
-
 def carregar_empresas():
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
@@ -103,7 +92,17 @@ def carregar_empresas():
     conn.close()
     for empresa in empresas_dict.values():
         empresa.catalogo = carregar_catalogo(empresa.nome)
+        logger.info(f"Catálogo carregado para {empresa.nome}: {empresa.catalogo}")
     return empresas_dict
+
+def salvar_empresa(nome, tipo_grade, endereco='', email='', telefone=''):
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    c = conn.cursor()
+    c.execute("INSERT INTO empresas (nome, tipo_grade, endereco, email, telefone) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (nome) DO UPDATE SET tipo_grade = %s, endereco = %s, email = %s, telefone = %s",
+              (nome, tipo_grade, endereco, email, telefone, tipo_grade, endereco, email, telefone))
+    conn.commit()
+    conn.close()
+
 
 def salvar_pedido(pedido):
     conn = psycopg2.connect(DB_CONNECTION_STRING)

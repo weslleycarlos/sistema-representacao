@@ -9,11 +9,12 @@ import psycopg2
 import json
 from functools import wraps
 import bcrypt
-from config import DB_CONNECTION_STRING  # Importar do config.py
+from config import DB_CONNECTION_STRING
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "sua-chave-secreta-aqui")
 
+# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,9 @@ logger.info(f"DB_CONNECTION_STRING carregada: {DB_CONNECTION_STRING}")
 
 init_db()
 empresas = carregar_empresas()
+
+# ... (outras funções e rotas)
+
 
 def login_required(f):
     @wraps(f)
@@ -171,12 +175,18 @@ def pedido():
 @app.route('/buscar_item/<empresa_nome>/<codigo>', methods=['GET'])
 @login_required
 def buscar_item(empresa_nome, codigo):
+    logger.info(f"Buscando item: empresa={empresa_nome}, codigo={codigo}")
     empresa = empresas.get(empresa_nome)
-    if empresa:
-        item = empresa.get_item(codigo)
-        if item:
-            return jsonify(item)
+    if not empresa:
+        logger.error(f"Empresa {empresa_nome} não encontrada")
+        return jsonify({"erro": "Empresa não encontrada"}), 404
+    item = empresa.get_item(codigo)
+    if item:
+        logger.info(f"Item encontrado: {item}")
+        return jsonify(item)
+    logger.warning(f"Item {codigo} não encontrado no catálogo de {empresa_nome}")
     return jsonify({"erro": "Item não encontrado"}), 404
+
 
 @app.route('/adicionar_item', methods=['POST'])
 @login_required
