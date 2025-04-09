@@ -17,6 +17,11 @@ def init_db():
                     email TEXT,
                     telefone TEXT)''')
     
+    # Adicionar colunas novas à tabela empresas, se necessário
+    c.execute("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS endereco TEXT")
+    c.execute("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS email TEXT")
+    c.execute("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS telefone TEXT")
+    
     # Tabela catalogo (sem mudanças)
     c.execute('''CREATE TABLE IF NOT EXISTS catalogo (
                     empresa_nome TEXT,
@@ -69,6 +74,13 @@ def init_db():
     conn.commit()
     conn.close()
 
+def salvar_empresa(nome, tipo_grade, endereco='', email='', telefone=''):
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    c = conn.cursor()
+    c.execute("INSERT INTO empresas (nome, tipo_grade, endereco, email, telefone) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (nome) DO UPDATE SET tipo_grade = %s, endereco = %s, email = %s, telefone = %s",
+              (nome, tipo_grade, endereco, email, telefone, tipo_grade, endereco, email, telefone))
+    conn.commit()
+    conn.close()
 
 def carregar_empresas():
     conn = psycopg2.connect(DB_CONNECTION_STRING)
@@ -82,14 +94,6 @@ def carregar_empresas():
         empresa.catalogo = carregar_catalogo(empresa.nome)
     return empresas_dict
 
-def salvar_empresa(nome, tipo_grade, endereco='', email='', telefone=''):
-    conn = psycopg2.connect(DB_CONNECTION_STRING)
-    c = conn.cursor()
-    c.execute("INSERT INTO empresas (nome, tipo_grade, endereco, email, telefone) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (nome) DO UPDATE SET tipo_grade = %s, endereco = %s, email = %s, telefone = %s",
-              (nome, tipo_grade, endereco, email, telefone, tipo_grade, endereco, email, telefone))
-    conn.commit()
-    conn.close()
-
 def salvar_pedido(pedido):
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
@@ -102,19 +106,6 @@ def salvar_pedido(pedido):
     pedido.id = c.fetchone()[0]
     conn.commit()
     conn.close()
-
-def carregar_ultimo_pedido(empresas):
-    conn = psycopg2.connect(DB_CONNECTION_STRING)
-    c = conn.cursor()
-    c.execute("SELECT empresa_nome, cnpj, razao_social, itens FROM pedidos ORDER BY id DESC LIMIT 1")
-    row = c.fetchone()
-    conn.close()
-    if row:
-        empresa_nome, cnpj, razao_social, itens_json = row
-        pedido = Pedido(empresas[empresa_nome], razao_social, cnpj)
-        pedido.itens = json.loads(itens_json)
-        return pedido
-    return None
 
 def carregar_ultimo_pedido(empresas):
     conn = psycopg2.connect(DB_CONNECTION_STRING)
@@ -133,6 +124,8 @@ def carregar_ultimo_pedido(empresas):
             pedido.itens = [Item(codigo=item["codigo"], quantidades=item["quantidades"]) for item in json.loads(row[6])]
             return pedido
     return None
+
+# ... (resto do código do database.py)
 
 
 # Novas funções para o catálogo
