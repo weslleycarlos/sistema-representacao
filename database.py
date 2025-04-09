@@ -88,12 +88,15 @@ def carregar_empresas():
     c.execute("SELECT nome, tipo_grade, endereco, email, telefone FROM empresas")
     empresas_dict = {}
     for row in c.fetchall():
-        empresas_dict[row[0]] = Empresa(nome=row[0], tipo_grade=row[1], catalogo={}, endereco=row[2], email=row[3], telefone=row[4])
+        empresas_dict[row[0]] = Empresa(nome=row[0], tipo_grade=row[1], endereco=row[2], email=row[3], telefone=row[4])
     conn.close()
     for empresa in empresas_dict.values():
         empresa.catalogo = carregar_catalogo(empresa.nome)
         logger.info(f"Catálogo carregado para {empresa.nome}: {empresa.catalogo}")
     return empresas_dict
+
+
+
 
 def salvar_empresa(nome, tipo_grade, endereco='', email='', telefone=''):
     conn = psycopg2.connect(DB_CONNECTION_STRING)
@@ -143,10 +146,13 @@ def carregar_catalogo(empresa_nome):
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
     c.execute("SELECT codigo, descritivo, valor, tamanhos FROM catalogo WHERE empresa_nome = %s", (empresa_nome,))
-    catalogo = [
-        {"codigo": row[0], "descritivo": row[1], "valor": row[2], "tamanhos": json.loads(row[3])}
-        for row in c.fetchall()
-    ]
+    catalogo = {}
+    for row in c.fetchall():
+        catalogo[row[0]] = {
+            "descritivo": row[1],
+            "valor": float(row[2]),
+            "tamanhos": row[3].split(",")  # Converte a string de tamanhos em lista
+        }
     conn.close()
     return catalogo
 
