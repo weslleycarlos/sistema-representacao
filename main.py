@@ -6,12 +6,16 @@ import requests
 import os
 import logging
 import psycopg2
+import bcrypt
 import json
 from functools import wraps
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "sua-chave-secreta-aqui"  # Mude para algo seguro
-DB_CONNECTION_STRING = "postgresql://postgres.qesszwlqxftxdomreawa:Maccol#1992#@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+app.secret_key = os.getenv("SECRET_KEY", "P@ssw0rd2025")
+DB_CONNECTION_STRING = os.getenv("DB_CONNECTION_STRING")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,21 +32,30 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-USUARIO_CORRETO = "admin"
-SENHA_CORRETA = "12345"
+def verificar_credenciais(usuario, senha):
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    c = conn.cursor()
+    c.execute("SELECT senha FROM usuarios WHERE usuario = %s", (usuario,))
+    resultado = c.fetchone()
+    conn.close()
+    if resultado and bcrypt.checkpw(senha.encode('utf-8'), resultado[0].encode('utf-8')):
+        return True
+    return False
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         usuario = request.form['usuario']
         senha = request.form['senha']
-        if usuario == USUARIO_CORRETO and senha == SENHA_CORRETA:
+        if verificar_credenciais(usuario, senha):
             session['logged_in'] = True
             flash("Login realizado com sucesso!", "success")
             return redirect(url_for('selecionar_empresa'))
         else:
             flash("Usuário ou senha incorretos.", "danger")
     return render_template('login.html')
+
+
 
 @app.route('/selecionar_empresa', methods=['GET', 'POST'])
 @login_required

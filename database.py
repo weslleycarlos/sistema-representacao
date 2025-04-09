@@ -3,29 +3,37 @@ import psycopg2
 import json
 from empresas import Empresa
 from pedidos import Pedido
+import os
+import bcrypt
 
-# Connection string do pooler (substitua [SUA-SENHA])
-DB_CONNECTION_STRING = "postgresql://postgres.qesszwlqxftxdomreawa:Maccol#1992#@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+DB_CONNECTION_STRING = os.getenv("DB_CONNECTION_STRING")
 
 def init_db():
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS empresas
-                 (nome TEXT PRIMARY KEY, tipo_grade TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS catalogo
-                 (empresa_nome TEXT, codigo TEXT, descritivo TEXT, valor REAL, tamanhos TEXT,
-                  PRIMARY KEY (empresa_nome, codigo),
-                  CONSTRAINT fk_empresa FOREIGN KEY (empresa_nome) REFERENCES empresas(nome))''')
-    c.execute('''CREATE TABLE IF NOT EXISTS pedidos
-                 (id SERIAL PRIMARY KEY, empresa_nome TEXT, cnpj TEXT,
-                  razao_social TEXT, itens TEXT,
-                  CONSTRAINT fk_empresa FOREIGN KEY (empresa_nome) REFERENCES empresas(nome))''')
-    c.execute("INSERT INTO empresas (nome, tipo_grade) VALUES (%s, %s) ON CONFLICT (nome) DO NOTHING", 
-              ("Empresa A", "numerico"))
-    c.execute("INSERT INTO catalogo (empresa_nome, codigo, descritivo, valor, tamanhos) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (empresa_nome, codigo) DO NOTHING",
-              ("Empresa A", "1018A", "KIT ESSENCIAL TRADICIONAL", 129.49, '["2", "4", "6"]'))
-    c.execute("INSERT INTO catalogo (empresa_nome, codigo, descritivo, valor, tamanhos) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (empresa_nome, codigo) DO NOTHING",
-              ("Empresa A", "1052", "KIT CONFORT COM LATERAIS TRADICIONAIS", 237.49, '["2", "4", "6"]'))
+    c.execute('''CREATE TABLE IF NOT EXISTS empresas (
+                    nome TEXT PRIMARY KEY,
+                    tipo_grade TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS catalogo (
+                    empresa_nome TEXT,
+                    codigo TEXT,
+                    descritivo TEXT,
+                    valor REAL,
+                    tamanhos TEXT,
+                    PRIMARY KEY (empresa_nome, codigo))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS pedidos (
+                    id SERIAL PRIMARY KEY,
+                    empresa_nome TEXT,
+                    cnpj TEXT,
+                    razao_social TEXT,
+                    itens JSONB)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
+                    id SERIAL PRIMARY KEY,
+                    usuario TEXT UNIQUE,
+                    senha TEXT)''')
+    # Inserir usuário padrão com senha hasheada
+    senha_hash = bcrypt.hashpw('12345'.encode('utf-8'), bcrypt.gensalt())
+    c.execute("INSERT INTO usuarios (usuario, senha) VALUES ('admin', %s) ON CONFLICT (usuario) DO NOTHING", (senha_hash.decode('utf-8'),))
     conn.commit()
     conn.close()
 
