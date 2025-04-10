@@ -7,14 +7,17 @@ class Item:
         return {"codigo": self.codigo, "quantidades": self.quantidades}
 
 class Pedido:
-    def __init__(self, empresa, razao_social, cnpj, forma_pagamento_id=1, desconto=0.0):
+    def __init__(self, empresa, razao_social, cnpj, forma_pagamento_id=1, desconto=0.0, endereco='', email='', telefone=''):
         self.id = None
         self.empresa = empresa
         self.razao_social = razao_social
-        self.cnpj = cnpj
+        self.cnpj= cnpj
         self.data_compra = None
         self.forma_pagamento_id = forma_pagamento_id
         self.desconto = desconto
+        self.endereco = endereco
+        self.email = email
+        self.telefone = telefone
         self.itens = []
 
     def adicionar_item(self, codigo, quantidades):

@@ -113,7 +113,13 @@ def lista_pedidos():
         return redirect(url_for('selecionar_empresa'))
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
-    c.execute("SELECT id, empresa_nome, cnpj_loja, data_compra, forma_pagamento_id, desconto, itens FROM pedidos WHERE empresa_nome = %s ORDER BY id DESC", (empresa_selecionada,))
+    c.execute("""
+        SELECT p.id, p.empresa_nome, p.cnpj_loja, p.data_compra, p.forma_pagamento_id, p.desconto, p.itens, l.razao_social
+        FROM pedidos p
+        JOIN lojas l ON p.cnpj_loja = l.cnpj
+        WHERE p.empresa_nome = %s
+        ORDER BY p.id DESC
+    """, (empresa_selecionada,))
     pedidos_raw = c.fetchall()
     c.execute("SELECT id, nome FROM formas_pagamento")
     formas_pagamento = [{"id": row[0], "nome": row[1]} for row in c.fetchall()]
@@ -137,6 +143,7 @@ def lista_pedidos():
             "forma_pagamento_id": row[4],
             "desconto": row[5],
             "itens": itens,
+            "razao_social": row[7],
             "total": total
         })
     return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas, formas_pagamento=formas_pagamento)
@@ -153,6 +160,9 @@ def pedido():
         razao_social = request.form['razao']
         forma_pagamento_id = int(request.form['forma_pagamento'])
         desconto = float(request.form.get('desconto', 0.0))
+        endereco = request.form.get('endereco', '')
+        email = request.form.get('email', '')
+        telefone = request.form.get('telefone', '')
         itens = []
         codigos = request.form.getlist('codigo[]')
         logger.info(f"Codigos recebidos: {codigos}")
@@ -160,7 +170,6 @@ def pedido():
             if codigo:
                 item = empresas[empresa_selecionada].get_item(codigo)
                 if item:
-                    # Usar tamanhos limpos do item
                     tamanhos = item["tamanhos"]
                     quantidades = {tam: int(request.form.get(f"qtd_{i}_{tam}", "0") or "0") for tam in tamanhos}
                     logger.info(f"Quantidades para {codigo}: {quantidades}")
@@ -169,7 +178,7 @@ def pedido():
         if not itens:
             flash("Adicione pelo menos um item com quantidade ao pedido.", "warning")
             return redirect(url_for('lista_pedidos'))
-        pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj, forma_pagamento_id, desconto)
+        pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj, forma_pagamento_id, desconto, endereco, email, telefone)
         for item in itens:
             pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
         salvar_pedido(pedido_atual)

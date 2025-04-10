@@ -24,7 +24,7 @@
                     {% for pedido in pedidos %}
                     <tr>
                         <td>{{ pedido.id }}</td>
-                        <td>{{ pedido.cnpj }}</td>
+                        <td>{{ pedido.cnpj_loja }}</td>
                         <td>{{ pedido.razao_social }}</td>
                         <td>
                             {% for item in pedido.itens %}

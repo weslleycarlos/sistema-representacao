@@ -110,10 +110,10 @@ def salvar_empresa(nome, tipo_grade, endereco='', email='', telefone=''):
 def salvar_pedido(pedido):
     conn = psycopg2.connect(DB_CONNECTION_STRING)
     c = conn.cursor()
-    # Salvar loja se não existir
-    c.execute("INSERT INTO lojas (cnpj, razao_social) VALUES (%s, %s) ON CONFLICT (cnpj) DO UPDATE SET razao_social = %s",
-              (pedido.cnpj, pedido.razao_social, pedido.razao_social))
-    # Salvar pedido
+    # Salvar loja na tabela lojas
+    c.execute("INSERT INTO lojas (cnpj, razao_social, endereco, email, telefone) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (cnpj) DO UPDATE SET razao_social = %s, endereco = %s, email = %s, telefone = %s",
+              (pedido.cnpj, pedido.razao_social, pedido.endereco, pedido.email, pedido.telefone, pedido.razao_social, pedido.endereco, pedido.email, pedido.telefone))
+    # Salvar pedido na tabela pedidos
     c.execute("INSERT INTO pedidos (empresa_nome, cnpj_loja, data_compra, forma_pagamento_id, desconto, itens) VALUES (%s, %s, CURRENT_TIMESTAMP, %s, %s, %s) RETURNING id",
               (pedido.empresa.nome, pedido.cnpj, pedido.forma_pagamento_id, pedido.desconto, json.dumps([item.to_dict() for item in pedido.itens])))
     pedido.id = c.fetchone()[0]
