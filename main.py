@@ -9,7 +9,9 @@ import psycopg2
 import json
 from functools import wraps
 import bcrypt
-from config import DB_CONNECTION_STRING
+from config import DB_CONNECTION_STRING, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+import smtplib
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "sua-chave-secreta-aqui")
@@ -23,8 +25,11 @@ logger.info(f"DB_CONNECTION_STRING carregada: {DB_CONNECTION_STRING}")
 init_db()
 empresas = carregar_empresas()
 
-# ... (outras funções e rotas)
-
+conn = psycopg2.connect(DB_CONNECTION_STRING)
+c = conn.cursor()
+c.execute("SELECT id, nome FROM formas_pagamento")
+formas_pagamento = [{"id": row[0], "nome": row[1]} for row in c.fetchall()]
+conn.close()
 
 def login_required(f):
     @wraps(f)
@@ -44,6 +49,52 @@ def verificar_credenciais(usuario, senha):
     if resultado and bcrypt.checkpw(senha.encode('utf-8'), resultado[0].encode('utf-8')):
         return True
     return False
+
+def enviar_email_pedido(pedido):
+    try:
+        # Montar o corpo do e-mail
+        assunto = f"Pedido #{pedido.id} - {pedido.empresa.nome}"
+        corpo = f"""Novo Pedido Criado
+ID do Pedido: {pedido.id}
+Empresa Representada: {pedido.empresa.nome}
+CNPJ da Loja: {pedido.cnpj}
+Razão Social: {pedido.razao_social}
+Data: {pedido.data_compra}
+
+Itens:
+"""
+        for item in pedido.itens:
+            codigo = item.codigo
+            catalogo_item = pedido.empresa.catalogo.get(codigo, {})
+            descritivo = catalogo_item.get("descritivo", "Desconhecido")
+            valor_unit = catalogo_item.get("valor", 0)
+            quantidades = item.quantidades
+            total_item = sum(qtd * valor_unit for tam, qtd in quantidades.items())
+            corpo += f"- {codigo} - {descritivo}: {quantidades} (Total: R$ {total_item:.2f})\n"
+        
+        total_geral = sum(sum(qtd * pedido.empresa.catalogo.get(item.codigo, {}).get("valor", 0) 
+                         for tam, qtd in item.quantidades.items()) for item in pedido.itens) - pedido.desconto
+        corpo += f"""
+Desconto: R$ {pedido.desconto:.2f}
+Total Geral: R$ {total_geral:.2f}
+Forma de Pagamento: {next((fp['nome'] for fp in formas_pagamento if fp['id'] == pedido.forma_pagamento_id), 'Desconhecida')}
+"""
+
+        # Configurar o e-mail
+        msg = MIMEText(corpo)
+        msg['Subject'] = assunto
+        msg['From'] = SMTP_USER
+        msg['To'] = pedido.email  # E-mail da loja compradora
+
+        # Enviar o e-mail
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+        logger.info(f"E-mail enviado para {pedido.email} com sucesso.")
+    except Exception as e:
+        logger.error(f"Erro ao enviar e-mail: {str(e)}", exc_info=True)
+        flash("Erro ao enviar o e-mail do pedido.", "danger")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -121,8 +172,6 @@ def lista_pedidos():
         ORDER BY p.id DESC
     """, (empresa_selecionada,))
     pedidos_raw = c.fetchall()
-    c.execute("SELECT id, nome FROM formas_pagamento")
-    formas_pagamento = [{"id": row[0], "nome": row[1]} for row in c.fetchall()]
     conn.close()
     
     pedidos = []
@@ -182,6 +231,8 @@ def pedido():
         for item in itens:
             pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
         salvar_pedido(pedido_atual)
+        if pedido_atual.email:
+            enviar_email_pedido(pedido_atual)
         flash("Novo pedido criado com sucesso!", "success")
     return redirect(url_for('lista_pedidos'))
 
