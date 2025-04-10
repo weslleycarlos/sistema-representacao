@@ -51,6 +51,10 @@ def verificar_credenciais(usuario, senha):
     return False
 
 def enviar_email_pedido(pedido):
+    if not SMTP_USER or not SMTP_PASS:
+        logger.warning("SMTP_USER ou SMTP_PASS não configurados. E-mail não será enviado.")
+        flash("Envio de e-mail desativado: configurações SMTP ausentes.", "warning")
+        return
     try:
         logger.info(f"Tentando enviar e-mail para {pedido.email} via {SMTP_HOST}:{SMTP_PORT}")
         assunto = f"Pedido #{pedido.id} - {pedido.empresa.nome}"
