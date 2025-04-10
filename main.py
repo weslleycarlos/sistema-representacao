@@ -14,7 +14,7 @@ import smtplib
 from email.mime.text import MIMEText
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "sua-chave-secreta-aqui")
+app.secret_key = os.getenv("SECRET_KEY", "P@ssw0rd2025")
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
