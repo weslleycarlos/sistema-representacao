@@ -52,6 +52,8 @@ def verificar_credenciais(usuario, senha):
 
 def enviar_email_pedido(pedido):
     try:
+        logger.info(f"Tentando enviar e-mail para {pedido.email} via {SMTP_HOST}:{SMTP_PORT}")
+        
         # Montar o corpo do e-mail
         assunto = f"Pedido #{pedido.id} - {pedido.empresa.nome}"
         corpo = f"""Novo Pedido Criado
@@ -84,17 +86,35 @@ Forma de Pagamento: {next((fp['nome'] for fp in formas_pagamento if fp['id'] == 
         msg = MIMEText(corpo)
         msg['Subject'] = assunto
         msg['From'] = SMTP_USER
-        msg['To'] = pedido.email  # E-mail da loja compradora
+        msg['To'] = pedido.email
 
-        # Enviar o e-mail
+        # Enviar o e-mail com TLS (porta 587)
+        logger.info("Iniciando conexão SMTP com TLS...")
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
+            server.ehlo()  # Identificar o cliente
+            server.starttls()  # Iniciar TLS
+            server.ehlo()  # Reidentificar após TLS
+            logger.info(f"Autenticando como {SMTP_USER}...")
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
-        logger.info(f"E-mail enviado para {pedido.email} com sucesso.")
+            logger.info(f"E-mail enviado para {pedido.email} com sucesso.")
+
+        # Alternativa com SSL (porta 465) - descomente se preferir testar
+        # logger.info("Iniciando conexão SMTP com SSL...")
+        # with smtplib.SMTP_SSL(SMTP_HOST, 465) as server:
+        #     server.login(SMTP_USER, SMTP_PASS)
+        #     server.send_message(msg)
+        #     logger.info(f"E-mail enviado para {pedido.email} com sucesso (via SSL).")
+
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"Falha na autenticação SMTP: {str(e)}", exc_info=True)
+        flash("Erro de autenticação ao enviar o e-mail. Verifique as credenciais SMTP.", "danger")
+    except smtplib.SMTPException as e:
+        logger.error(f"Erro SMTP ao enviar e-mail: {str(e)}", exc_info=True)
+        flash("Erro ao enviar o e-mail devido a um problema no servidor SMTP.", "danger")
     except Exception as e:
-        logger.error(f"Erro ao enviar e-mail: {str(e)}", exc_info=True)
-        flash("Erro ao enviar o e-mail do pedido.", "danger")
+        logger.error(f"Erro inesperado ao enviar e-mail: {str(e)}", exc_info=True)
+        flash("Erro inesperado ao enviar o e-mail do pedido.", "danger")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
