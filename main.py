@@ -53,8 +53,6 @@ def verificar_credenciais(usuario, senha):
 def enviar_email_pedido(pedido):
     try:
         logger.info(f"Tentando enviar e-mail para {pedido.email} via {SMTP_HOST}:{SMTP_PORT}")
-        
-        # Montar o corpo do e-mail
         assunto = f"Pedido #{pedido.id} - {pedido.empresa.nome}"
         corpo = f"""Novo Pedido Criado
 ID do Pedido: {pedido.id}
@@ -81,31 +79,19 @@ Desconto: R$ {pedido.desconto:.2f}
 Total Geral: R$ {total_geral:.2f}
 Forma de Pagamento: {next((fp['nome'] for fp in formas_pagamento if fp['id'] == pedido.forma_pagamento_id), 'Desconhecida')}
 """
-
-        # Configurar o e-mail
         msg = MIMEText(corpo)
         msg['Subject'] = assunto
         msg['From'] = SMTP_USER
         msg['To'] = pedido.email
-
-        # Enviar o e-mail com TLS (porta 587)
         logger.info("Iniciando conexão SMTP com TLS...")
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.ehlo()  # Identificar o cliente
-            server.starttls()  # Iniciar TLS
-            server.ehlo()  # Reidentificar após TLS
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
             logger.info(f"Autenticando como {SMTP_USER}...")
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
             logger.info(f"E-mail enviado para {pedido.email} com sucesso.")
-
-        # Alternativa com SSL (porta 465) - descomente se preferir testar
-        # logger.info("Iniciando conexão SMTP com SSL...")
-        # with smtplib.SMTP_SSL(SMTP_HOST, 465) as server:
-        #     server.login(SMTP_USER, SMTP_PASS)
-        #     server.send_message(msg)
-        #     logger.info(f"E-mail enviado para {pedido.email} com sucesso (via SSL).")
-
     except smtplib.SMTPAuthenticationError as e:
         logger.error(f"Falha na autenticação SMTP: {str(e)}", exc_info=True)
         flash("Erro de autenticação ao enviar o e-mail. Verifique as credenciais SMTP.", "danger")
@@ -128,7 +114,6 @@ def login():
         else:
             flash("Usuário ou senha incorretos.", "danger")
     return render_template('login.html')
-
 
 @app.route('/selecionar_empresa', methods=['GET', 'POST'])
 @login_required
@@ -278,7 +263,6 @@ def buscar_item(empresa_nome, codigo):
         logger.error(f"Erro interno ao buscar item: {str(e)}", exc_info=True)
         return jsonify({"erro": "Erro interno no servidor"}), 500
 
-
 @app.route('/adicionar_item', methods=['POST'])
 @login_required
 def adicionar_item():
@@ -334,8 +318,8 @@ def gerenciar_empresas():
 @login_required
 def remover_item_catalogo_route(empresa_nome, codigo):
     remover_item_catalogo(empresa_nome, codigo)
-    global empresas
-    empresas = carregar_empresas()
+    empresas[empresa_nome].catalogo = carregar_catalogo(empresa_nome)  # Recarregar apenas o catálogo da empresa
+    flash("Item removido do catálogo com sucesso!", "success")
     return redirect(url_for('gerenciar_empresas'))
 
 @app.route('/gerenciar_grades', methods=['GET', 'POST'])

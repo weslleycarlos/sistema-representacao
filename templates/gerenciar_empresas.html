@@ -42,9 +42,7 @@
                     <td>{{ item.valor }}</td>
                     <td>{{ item.tamanhos | join(', ') }}</td>
                     <td>
-                        <form method="POST" action="{{ url_for('remover_item_catalogo') }}" style="display:inline;">
-                            <input type="hidden" name="empresa_nome" value="{{ empresa_selecionada }}">
-                            <input type="hidden" name="codigo" value="{{ codigo }}">
+                        <form method="POST" action="{{ url_for('remover_item_catalogo_route', empresa_nome=empresa_selecionada, codigo=codigo) }}" style="display:inline;">
                             <button type="submit" class="btn btn-danger btn-sm">Remover</button>
                         </form>
                     </td>
@@ -54,7 +52,7 @@
         </table>
 
         <h3>Adicionar Item ao Catálogo</h3>
-        <form method="POST" action="{{ url_for('salvar_item_catalogo') }}">
+        <form method="POST" action="{{ url_for('gerenciar_empresas') }}">
             <input type="hidden" name="empresa_nome" value="{{ empresa_selecionada }}">
             <div class="row mb-3">
                 <div class="col-md-3">
@@ -75,6 +73,25 @@
                 </div>
             </div>
             <button type="submit" class="btn btn-primary">Adicionar Item</button>
+        </form>
+
+        <h3>Adicionar Empresa</h3>
+        <form method="POST" action="{{ url_for('gerenciar_empresas') }}">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="nome" class="form-label">Nome da Empresa</label>
+                    <input type="text" class="form-control form-control-sm" id="nome" name="nome" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="tipo_grade" class="form-label">Tipo de Grade</label>
+                    <select class="form-select form-select-sm" id="tipo_grade" name="tipo_grade" required>
+                        {% for tipo in tipos_grade %}
+                        <option value="{{ tipo }}">{{ tipo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Salvar Empresa</button>
         </form>
 
         <a href="{{ url_for('lista_pedidos') }}" class="btn btn-secondary mt-3">Voltar</a>
