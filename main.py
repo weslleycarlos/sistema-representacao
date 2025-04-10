@@ -63,6 +63,7 @@ Data: {pedido.data_compra}
 
 Itens:
 """
+        total_geral = 0
         for item in pedido.itens:
             codigo = item.codigo
             catalogo_item = pedido.empresa.catalogo.get(codigo, {})
@@ -70,13 +71,17 @@ Itens:
             valor_unit = catalogo_item.get("valor", 0)
             quantidades = item.quantidades
             total_item = sum(qtd * valor_unit for tam, qtd in quantidades.items())
+            total_geral += total_item
             corpo += f"- {codigo} - {descritivo}: {quantidades} (Total: R$ {total_item:.2f})\n"
         
-        total_geral = sum(sum(qtd * pedido.empresa.catalogo.get(item.codigo, {}).get("valor", 0) 
-                         for tam, qtd in item.quantidades.items()) for item in pedido.itens) - pedido.desconto
+        desconto_percentual = pedido.desconto  # Agora em percentual (ex.: 10 para 10%)
+        desconto_valor = total_geral * (desconto_percentual / 100)
+        total_liquido = total_geral - desconto_valor
+        
         corpo += f"""
-Desconto: R$ {pedido.desconto:.2f}
 Total Geral: R$ {total_geral:.2f}
+Desconto: {desconto_percentual:.2f}% (R$ {desconto_valor:.2f})
+Total Líquido: R$ {total_liquido:.2f}
 Forma de Pagamento: {next((fp['nome'] for fp in formas_pagamento if fp['id'] == pedido.forma_pagamento_id), 'Desconhecida')}
 """
         msg = MIMEText(corpo)
@@ -101,6 +106,45 @@ Forma de Pagamento: {next((fp['nome'] for fp in formas_pagamento if fp['id'] == 
     except Exception as e:
         logger.error(f"Erro inesperado ao enviar e-mail: {str(e)}", exc_info=True)
         flash("Erro inesperado ao enviar o e-mail do pedido.", "danger")
+        
+@app.route('/pedido', methods=['POST'])
+@login_required
+def pedido():
+    empresa_selecionada = session.get('empresa_selecionada')
+    if not empresa_selecionada:
+        flash("Selecione uma empresa antes de continuar.", "warning")
+        return redirect(url_for('selecionar_empresa'))
+    if request.method == 'POST':
+        cnpj = request.form['cnpj']
+        razao_social = request.form['razao']
+        forma_pagamento_id = int(request.form['forma_pagamento'])
+        desconto = float(request.form.get('desconto', 0.0))  # Agora em percentual
+        endereco = request.form.get('endereco', '')
+        email = request.form.get('email', '')
+        telefone = request.form.get('telefone', '')
+        itens = []
+        codigos = request.form.getlist('codigo[]')
+        logger.info(f"Codigos recebidos: {codigos}")
+        for i, codigo in enumerate(codigos):
+            if codigo:
+                item = empresas[empresa_selecionada].get_item(codigo)
+                if item:
+                    tamanhos = item["tamanhos"]
+                    quantidades = {tam: int(request.form.get(f"qtd_{i}_{tam}", "0") or "0") for tam in tamanhos}
+                    logger.info(f"Quantidades para {codigo}: {quantidades}")
+                    if any(qtd > 0 for qtd in quantidades.values()):
+                        itens.append({"codigo": codigo, "quantidades": quantidades})
+        if not itens:
+            flash("Adicione pelo menos um item com quantidade ao pedido.", "warning")
+            return redirect(url_for('lista_pedidos'))
+        pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj, forma_pagamento_id, desconto, endereco, email, telefone)
+        for item in itens:
+            pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
+        salvar_pedido(pedido_atual)
+        if pedido_atual.email:
+            enviar_email_pedido(pedido_atual)
+        flash("Novo pedido criado com sucesso!", "success")
+    return redirect(url_for('lista_pedidos'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -182,64 +226,29 @@ def lista_pedidos():
     pedidos = []
     for row in pedidos_raw:
         itens = json.loads(row[6])
-        total = 0
+        total_geral = 0
         for item in itens:
             codigo = item['codigo']
             quantidades = item['quantidades']
             valor_unit = empresas[empresa_selecionada].catalogo.get(codigo, {}).get('valor', 0)
-            total += valor_unit * sum(quantidades.values())
-        total -= row[5]  # Subtrair desconto
+            total_geral += valor_unit * sum(quantidades.values())
+        desconto_percentual = row[5]  # Agora em percentual
+        desconto_valor = total_geral * (desconto_percentual / 100)
+        total_liquido = total_geral - desconto_valor
         pedidos.append({
             "id": row[0],
             "empresa_nome": row[1],
             "cnpj_loja": row[2],
             "data_compra": row[3],
             "forma_pagamento_id": row[4],
-            "desconto": row[5],
+            "desconto": desconto_percentual,
+            "desconto_valor": desconto_valor,
             "itens": itens,
             "razao_social": row[7],
-            "total": total
+            "total_geral": total_geral,
+            "total_liquido": total_liquido
         })
     return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas, formas_pagamento=formas_pagamento)
-
-@app.route('/pedido', methods=['POST'])
-@login_required
-def pedido():
-    empresa_selecionada = session.get('empresa_selecionada')
-    if not empresa_selecionada:
-        flash("Selecione uma empresa antes de continuar.", "warning")
-        return redirect(url_for('selecionar_empresa'))
-    if request.method == 'POST':
-        cnpj = request.form['cnpj']
-        razao_social = request.form['razao']
-        forma_pagamento_id = int(request.form['forma_pagamento'])
-        desconto = float(request.form.get('desconto', 0.0))
-        endereco = request.form.get('endereco', '')
-        email = request.form.get('email', '')
-        telefone = request.form.get('telefone', '')
-        itens = []
-        codigos = request.form.getlist('codigo[]')
-        logger.info(f"Codigos recebidos: {codigos}")
-        for i, codigo in enumerate(codigos):
-            if codigo:
-                item = empresas[empresa_selecionada].get_item(codigo)
-                if item:
-                    tamanhos = item["tamanhos"]
-                    quantidades = {tam: int(request.form.get(f"qtd_{i}_{tam}", "0") or "0") for tam in tamanhos}
-                    logger.info(f"Quantidades para {codigo}: {quantidades}")
-                    if any(qtd > 0 for qtd in quantidades.values()):
-                        itens.append({"codigo": codigo, "quantidades": quantidades})
-        if not itens:
-            flash("Adicione pelo menos um item com quantidade ao pedido.", "warning")
-            return redirect(url_for('lista_pedidos'))
-        pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj, forma_pagamento_id, desconto, endereco, email, telefone)
-        for item in itens:
-            pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
-        salvar_pedido(pedido_atual)
-        if pedido_atual.email:
-            enviar_email_pedido(pedido_atual)
-        flash("Novo pedido criado com sucesso!", "success")
-    return redirect(url_for('lista_pedidos'))
 
 @app.route('/buscar_item/<empresa_nome>/<codigo>', methods=['GET'])
 @login_required

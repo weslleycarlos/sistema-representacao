@@ -1,102 +1,77 @@
 {% extends "base.html" %}
 {% block title %}Gerenciar Empresas - Sistema de Representação{% endblock %}
 {% block content %}
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciar Empresas</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <div class="container mt-5">
-        <h1>Gerenciar Empresas</h1>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        <h3>Itens no Catálogo</h3>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th style="width: 15%;">Código</th>
-                    <th style="width: 35%;">Descritivo</th>
-                    <th style="width: 15%;">Valor (R$)</th>
-                    <th style="width: 20%;">Tamanhos</th>
-                    <th style="width: 15%;">Ação</th>
-                </tr>
-            </thead>
-            <tbody id="catalogoTbody">
-                {% for codigo, item in empresas[empresa_selecionada].catalogo.items() %}
-                <tr>
-                    <td>{{ codigo }}</td>
-                    <td>{{ item.descritivo }}</td>
-                    <td>{{ item.valor }}</td>
-                    <td>{{ item.tamanhos | join(', ') }}</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('remover_item_catalogo_route', empresa_nome=empresa_selecionada, codigo=codigo) }}" style="display:inline;">
-                            <button type="submit" class="btn btn-danger btn-sm">Remover</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<h1>Gerenciar Empresas</h1>
+<h3>Itens no Catálogo</h3>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th style="width: 15%;">Código</th>
+            <th style="width: 35%;">Descritivo</th>
+            <th style="width: 15%;">Valor (R$)</th>
+            <th style="width: 20%;">Tamanhos</th>
+            <th style="width: 15%;">Ação</th>
+        </tr>
+    </thead>
+    <tbody id="catalogoTbody">
+        {% for codigo, item in empresas[empresa_selecionada].catalogo.items() %}
+        <tr>
+            <td>{{ codigo }}</td>
+            <td>{{ item.descritivo }}</td>
+            <td>{{ item.valor }}</td>
+            <td>{{ item.tamanhos | join(', ') }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('remover_item_catalogo_route', empresa_nome=empresa_selecionada, codigo=codigo) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-danger btn-sm">Remover</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
-        <h3>Adicionar Item ao Catálogo</h3>
-        <form method="POST" action="{{ url_for('gerenciar_empresas') }}">
-            <input type="hidden" name="empresa_nome" value="{{ empresa_selecionada }}">
-            <div class="row mb-3">
-                <div class="col-md-3">
-                    <label for="codigo" class="form-label">Código</label>
-                    <input type="text" class="form-control form-control-sm" id="codigo" name="codigo" required>
-                </div>
-                <div class="col-md-4">
-                    <label for="descritivo" class="form-label">Descritivo</label>
-                    <input type="text" class="form-control form-control-sm" id="descritivo" name="descritivo" required>
-                </div>
-                <div class="col-md-2">
-                    <label for="valor" class="form-label">Valor (R$)</label>
-                    <input type="number" class="form-control form-control-sm" id="valor" name="valor" step="0.01" required>
-                </div>
-                <div class="col-md-3">
-                    <label for="tamanhos" class="form-label">Tamanhos (separados por vírgula)</label>
-                    <input type="text" class="form-control form-control-sm" id="tamanhos" name="tamanhos" required>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary">Adicionar Item</button>
-        </form>
-
-        <h3>Adicionar Empresa</h3>
-        <form method="POST" action="{{ url_for('gerenciar_empresas') }}">
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label for="nome" class="form-label">Nome da Empresa</label>
-                    <input type="text" class="form-control form-control-sm" id="nome" name="nome" required>
-                </div>
-                <div class="col-md-6">
-                    <label for="tipo_grade" class="form-label">Tipo de Grade</label>
-                    <select class="form-select form-select-sm" id="tipo_grade" name="tipo_grade" required>
-                        {% for tipo in tipos_grade %}
-                        <option value="{{ tipo }}">{{ tipo }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary">Salvar Empresa</button>
-        </form>
-
-        <a href="{{ url_for('lista_pedidos') }}" class="btn btn-secondary mt-3">Voltar</a>
+<h3>Adicionar Item ao Catálogo</h3>
+<form method="POST" action="{{ url_for('gerenciar_empresas') }}">
+    <input type="hidden" name="empresa_nome" value="{{ empresa_selecionada }}">
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label for="codigo" class="form-label">Código</label>
+            <input type="text" class="form-control form-control-sm" id="codigo" name="codigo" required>
+        </div>
+        <div class="col-md-4">
+            <label for="descritivo" class="form-label">Descritivo</label>
+            <input type="text" class="form-control form-control-sm" id="descritivo" name="descritivo" required>
+        </div>
+        <div class="col-md-2">
+            <label for="valor" class="form-label">Valor (R$)</label>
+            <input type="number" class="form-control form-control-sm" id="valor" name="valor" step="0.01" required>
+        </div>
+        <div class="col-md-3">
+            <label for="tamanhos" class="form-label">Tamanhos (separados por vírgula)</label>
+            <input type="text" class="form-control form-control-sm" id="tamanhos" name="tamanhos" required>
+        </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    <button type="submit" class="btn btn-primary">Adicionar Item</button>
+</form>
+
+<h3>Adicionar Empresa</h3>
+<form method="POST" action="{{ url_for('gerenciar_empresas') }}">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label for="nome" class="form-label">Nome da Empresa</label>
+            <input type="text" class="form-control form-control-sm" id="nome" name="nome" required>
+        </div>
+        <div class="col-md-6">
+            <label for="tipo_grade" class="form-label">Tipo de Grade</label>
+            <select class="form-select form-select-sm" id="tipo_grade" name="tipo_grade" required>
+                {% for tipo in tipos_grade %}
+                <option value="{{ tipo }}">{{ tipo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Salvar Empresa</button>
+</form>
+
+<a href="{{ url_for('lista_pedidos') }}" class="btn btn-secondary mt-3">Voltar</a>
 {% endblock %}

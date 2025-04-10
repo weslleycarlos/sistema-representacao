@@ -1,259 +1,241 @@
 {% extends "base.html" %}
 {% block title %}Pedidos - Sistema de Representação{% endblock %}
 {% block content %}
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Pedidos</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <div class="container mt-5">
-        <h1>Lista de Pedidos - {{ empresa_selecionada }}</h1>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        <div class="mb-3">
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoPedidoModal">Novo Pedido</button>
-            <a href="{{ url_for('gerenciar_empresas') }}" class="btn btn-secondary">Gerenciar Empresas</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger">Sair</a>
-        </div>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>CNPJ</th>
-                    <th>Razão Social</th>
-                    <th>Data</th>
-                    <th>Itens</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pedido in pedidos %}
-                <tr>
-                    <td>{{ pedido.id }}</td>
-                    <td>{{ pedido.cnpj_loja }}</td>
-                    <td>{{ pedido.razao_social }}</td>
-                    <td>{{ pedido.data_compra }}</td>
-                    <td>{{ pedido.itens | length }}</td>
-                    <td>R$ {{ pedido.total | round(2) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<h1>Lista de Pedidos - {{ empresa_selecionada }}</h1>
+<div class="mb-3">
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoPedidoModal">Novo Pedido</button>
+</div>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>CNPJ</th>
+            <th>Razão Social</th>
+            <th>Data</th>
+            <th>Itens</th>
+            <th>Total Geral</th>
+            <th>Total Líquido</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for pedido in pedidos %}
+        <tr>
+            <td>{{ pedido.id }}</td>
+            <td>{{ pedido.cnpj_loja }}</td>
+            <td>{{ pedido.razao_social }}</td>
+            <td>{{ pedido.data_compra }}</td>
+            <td>{{ pedido.itens | length }}</td>
+            <td>R$ {{ pedido.total_geral | round(2) }}</td>
+            <td>R$ {{ pedido.total_liquido | round(2) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
-    <!-- Modal Novo Pedido -->
-    <div class="modal fade" id="novoPedidoModal" tabindex="-1" aria-labelledby="novoPedidoModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="novoPedidoModalLabel">Novo Pedido</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form method="POST" action="{{ url_for('pedido') }}" onsubmit="return validarFormulario()">
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label for="cnpj" class="form-label">CNPJ</label>
-                                <input type="text" class="form-control form-control-sm" id="cnpj" name="cnpj" required>
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="button" class="btn btn-primary btn-sm" onclick="consultarCnpj()">Consultar</button>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="razao" class="form-label">Razão Social</label>
-                                <input type="text" class="form-control form-control-sm" id="razao" name="razao" readonly>
-                            </div>
+<!-- Modal Novo Pedido -->
+<div class="modal fade" id="novoPedidoModal" tabindex="-1" aria-labelledby="novoPedidoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novoPedidoModalLabel">Novo Pedido</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('pedido') }}" onsubmit="return validarFormulario()">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="cnpj" class="form-label">CNPJ</label>
+                            <input type="text" class="form-control form-control-sm" id="cnpj" name="cnpj" required>
                         </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="endereco" class="form-label">Endereço</label>
-                                <input type="text" class="form-control form-control-sm" id="endereco" name="endereco" readonly>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="email" class="form-label">E-mail</label>
-                                <input type="email" class="form-control form-control-sm" id="email" name="email" readonly>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="telefone" class="form-label">Telefone</label>
-                                <input type="text" class="form-control form-control-sm" id="telefone" name="telefone" readonly>
-                            </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="button" class="btn btn-primary btn-sm" onclick="consultarCnpj()">Consultar</button>
                         </div>
-                        <div class="mb-3">
-                            <button type="button" class="btn btn-success btn-sm" onclick="adicionarItem()">Adicionar Item</button>
+                        <div class="col-md-6">
+                            <label for="razao" class="form-label">Razão Social</label>
+                            <input type="text" class="form-control form-control-sm" id="razao" name="razao" readonly>
                         </div>
-                        <table class="table table-bordered" id="tabelaItens">
-                            <thead>
-                                <tr>
-                                    <th style="width: 15%;">Código</th>
-                                    <th style="width: 25%;">Descritivo</th>
-                                    <th style="width: 30%;">Quantidades</th>
-                                    <th style="width: 10%;">Vlr. Unit.</th>
-                                    <th style="width: 10%;">Vlr. Total</th>
-                                    <th style="width: 10%;">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                        <div class="row mb-3">
-                            <div class="col-md-3">
-                                <label for="forma_pagamento" class="form-label">Forma de Pagamento</label>
-                                <select class="form-select form-select-sm" id="forma_pagamento" name="forma_pagamento" required>
-                                    {% for fp in formas_pagamento %}
-                                    <option value="{{ fp.id }}">{{ fp.nome }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="desconto" class="form-label">Desconto (R$)</label>
-                                <input type="number" class="form-control form-control-sm" id="desconto" name="desconto" min="0" step="0.01" value="0" oninput="atualizarTotalGeral()">
-                            </div>
-                            <div class="col-md-3 offset-md-3">
-                                <label for="totalGeral" class="form-label">Total Geral (R$)</label>
-                                <input type="text" class="form-control form-control-sm" id="totalGeral" name="totalGeral" readonly>
-                            </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="endereco" class="form-label">Endereço</label>
+                            <input type="text" class="form-control form-control-sm" id="endereco" name="endereco" readonly>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
-                            <button type="submit" class="btn btn-primary btn-sm">Criar Pedido</button>
+                        <div class="col-md-3">
+                            <label for="email" class="form-label">E-mail</label>
+                            <input type="email" class="form-control form-control-sm" id="email" name="email" readonly>
                         </div>
-                    </form>
-                </div>
+                        <div class="col-md-3">
+                            <label for="telefone" class="form-label">Telefone</label>
+                            <input type="text" class="form-control form-control-sm" id="telefone" name="telefone" readonly>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-success btn-sm" onclick="adicionarItem()">Adicionar Item</button>
+                    </div>
+                    <table class="table table-bordered" id="tabelaItens">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Código</th>
+                                <th style="width: 25%;">Descritivo</th>
+                                <th style="width: 30%;">Quantidades</th>
+                                <th style="width: 10%;">Vlr. Unit.</th>
+                                <th style="width: 10%;">Vlr. Total</th>
+                                <th style="width: 10%;">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="forma_pagamento" class="form-label">Forma de Pagamento</label>
+                            <select class="form-select form-select-sm" id="forma_pagamento" name="forma_pagamento" required>
+                                {% for fp in formas_pagamento %}
+                                <option value="{{ fp.id }}">{{ fp.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="desconto" class="form-label">Desconto (%)</label>
+                            <input type="number" class="form-control form-control-sm" id="desconto" name="desconto" min="0" max="100" step="0.01" value="0" oninput="atualizarTotalGeral()">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="totalGeral" class="form-label">Total Geral (R$)</label>
+                            <input type="text" class="form-control form-control-sm" id="totalGeral" name="totalGeral" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="totalLiquido" class="form-label">Total Líquido (R$)</label>
+                            <input type="text" class="form-control form-control-sm" id="totalLiquido" name="totalLiquido" readonly>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Criar Pedido</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        let itemCount = 0;
+<script>
+    let itemCount = 0;
 
-        function consultarCnpj() {
-            const cnpj = document.getElementById('cnpj').value;
-            fetch('/consultar_cnpj', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'cnpj=' + encodeURIComponent(cnpj)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    document.getElementById('razao').value = data.nome || '';
-                    document.getElementById('endereco').value = data.logradouro + ', ' + data.numero + ' - ' + data.bairro + ', ' + data.municipio + ' - ' + data.uf || '';
-                    document.getElementById('email').value = data.email || '';
-                    document.getElementById('telefone').value = data.telefone || '';
-                }
-            })
-            .catch(error => alert('Erro ao consultar CNPJ: ' + error));
-        }
-
-        function adicionarItem() {
-            const tbody = document.querySelector('#tabelaItens tbody');
-            const row = document.createElement('tr');
-            const currentIndex = itemCount;
-            row.innerHTML = `
-                <td><input type="text" name="codigo[]" class="form-control form-control-sm" onblur="buscarItem(this, ${currentIndex})" required></td>
-                <td><input type="text" name="descritivo[]" class="form-control form-control-sm" readonly></td>
-                <td id="quantidades-${currentIndex}" class="d-flex flex-wrap gap-1"></td>
-                <td><input type="text" name="valor_unit[]" class="form-control form-control-sm text-end" readonly></td>
-                <td><input type="text" name="total[]" class="form-control form-control-sm text-end" readonly></td>
-                <td><button type="button" class="btn btn-danger btn-sm" onclick="removerItem(this)">X</button></td>
-            `;
-            tbody.appendChild(row);
-            itemCount++;
-        }
-
-        function buscarItem(input, index) {
-            const codigo = input.value;
-            if (codigo) {
-                fetch(`/buscar_item/{{ empresa_selecionada }}/${codigo}`, { method: 'GET' })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Erro HTTP: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.erro) {
-                            alert(data.erro);
-                            return;
-                        }
-                        const row = input.closest('tr');
-                        row.querySelector('input[name="descritivo[]"]').value = data.descritivo;
-                        row.querySelector('input[name="valor_unit[]"]').value = data.valor.toFixed(2);
-                        const quantidadesCell = row.querySelector(`#quantidades-${index}`);
-                        quantidadesCell.innerHTML = '';
-                        data.tamanhos.forEach(tam => {
-                            quantidadesCell.innerHTML += `
-                                <div class="input-group input-group-sm" style="width: 80px;">
-                                    <span class="input-group-text" style="width: 30px;">${tam}</span>
-                                    <input type="number" name="qtd_${index}_${tam}" class="form-control" min="0" style="width: 50px;" oninput="calcularTotal(this, ${index})">
-                                </div>
-                            `;
-                        });
-                    })
-                    .catch(error => alert('Erro ao buscar item: ' + error));
+    function consultarCnpj() {
+        const cnpj = document.getElementById('cnpj').value;
+        fetch('/consultar_cnpj', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'cnpj=' + encodeURIComponent(cnpj)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                document.getElementById('razao').value = data.nome || '';
+                document.getElementById('endereco').value = data.logradouro + ', ' + data.numero + ' - ' + data.bairro + ', ' + data.municipio + ' - ' + data.uf || '';
+                document.getElementById('email').value = data.email || '';
+                document.getElementById('telefone').value = data.telefone || '';
             }
-        }
+        })
+        .catch(error => alert('Erro ao consultar CNPJ: ' + error));
+    }
 
-        function calcularTotal(input, index) {
-            const row = input.closest('tr');
-            const valorUnit = parseFloat(row.querySelector('input[name="valor_unit[]"]').value) || 0;
-            let total = 0;
-            row.querySelectorAll(`input[name^="qtd_${index}_"]`).forEach(qtdInput => {
-                const qtd = parseInt(qtdInput.value) || 0;
-                total += qtd * valorUnit;
-            });
-            row.querySelector('input[name="total[]"]').value = total.toFixed(2);
-            atualizarTotalGeral();
-        }
+    function adicionarItem() {
+        const tbody = document.querySelector('#tabelaItens tbody');
+        const row = document.createElement('tr');
+        const currentIndex = itemCount;
+        row.innerHTML = `
+            <td><input type="text" name="codigo[]" class="form-control form-control-sm" onblur="buscarItem(this, ${currentIndex})" required></td>
+            <td><input type="text" name="descritivo[]" class="form-control form-control-sm" readonly></td>
+            <td id="quantidades-${currentIndex}" class="d-flex flex-wrap gap-1"></td>
+            <td><input type="text" name="valor_unit[]" class="form-control form-control-sm text-end" readonly></td>
+            <td><input type="text" name="total[]" class="form-control form-control-sm text-end" readonly></td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="removerItem(this)">X</button></td>
+        `;
+        tbody.appendChild(row);
+        itemCount++;
+    }
 
-        function atualizarTotalGeral() {
-            let totalGeral = 0;
-            document.querySelectorAll('input[name="total[]"]').forEach(totalInput => {
-                totalGeral += parseFloat(totalInput.value) || 0;
-            });
-            const desconto = parseFloat(document.getElementById('desconto').value) || 0;
-            totalGeral -= desconto;
-            document.getElementById('totalGeral').value = totalGeral.toFixed(2);
+    function buscarItem(input, index) {
+        const codigo = input.value;
+        if (codigo) {
+            fetch(`/buscar_item/{{ empresa_selecionada }}/${codigo}`, { method: 'GET' })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro HTTP: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.erro) {
+                        alert(data.erro);
+                        return;
+                    }
+                    const row = input.closest('tr');
+                    row.querySelector('input[name="descritivo[]"]').value = data.descritivo;
+                    row.querySelector('input[name="valor_unit[]"]').value = data.valor.toFixed(2);
+                    const quantidadesCell = row.querySelector(`#quantidades-${index}`);
+                    quantidadesCell.innerHTML = '';
+                    data.tamanhos.forEach(tam => {
+                        quantidadesCell.innerHTML += `
+                            <div class="input-group input-group-sm" style="width: 80px;">
+                                <span class="input-group-text" style="width: 30px;">${tam}</span>
+                                <input type="number" name="qtd_${index}_${tam}" class="form-control" min="0" style="width: 50px;" oninput="calcularTotal(this, ${index})">
+                            </div>
+                        `;
+                    });
+                })
+                .catch(error => alert('Erro ao buscar item: ' + error));
         }
+    }
 
-        function removerItem(button) {
-            button.closest('tr').remove();
-            atualizarTotalGeral();
+    function calcularTotal(input, index) {
+        const row = input.closest('tr');
+        const valorUnit = parseFloat(row.querySelector('input[name="valor_unit[]"]').value) || 0;
+        let total = 0;
+        row.querySelectorAll(`input[name^="qtd_${index}_"]`).forEach(qtdInput => {
+            const qtd = parseInt(qtdInput.value) || 0;
+            total += qtd * valorUnit;
+        });
+        row.querySelector('input[name="total[]"]').value = total.toFixed(2);
+        atualizarTotalGeral();
+    }
+
+    function atualizarTotalGeral() {
+        let totalGeral = 0;
+        document.querySelectorAll('input[name="total[]"]').forEach(totalInput => {
+            totalGeral += parseFloat(totalInput.value) || 0;
+        });
+        const desconto = parseFloat(document.getElementById('desconto').value) || 0;
+        const descontoValor = totalGeral * (desconto / 100);
+        const totalLiquido = totalGeral - descontoValor;
+        document.getElementById('totalGeral').value = totalGeral.toFixed(2);
+        document.getElementById('totalLiquido').value = totalLiquido.toFixed(2);
+    }
+
+    function removerItem(button) {
+        button.closest('tr').remove();
+        atualizarTotalGeral();
+    }
+
+    function validarFormulario() {
+        const tbody = document.querySelector('#tabelaItens tbody');
+        if (tbody.children.length === 0) {
+            alert('Adicione pelo menos um item ao pedido.');
+            return false;
         }
-
-        function validarFormulario() {
-            const tbody = document.querySelector('#tabelaItens tbody');
-            if (tbody.children.length === 0) {
-                alert('Adicione pelo menos um item ao pedido.');
-                return false;
+        let temQuantidade = false;
+        document.querySelectorAll('input[name^="qtd_"]').forEach(qtdInput => {
+            if (parseInt(qtdInput.value) > 0) {
+                temQuantidade = true;
             }
-            let temQuantidade = false;
-            document.querySelectorAll('input[name^="qtd_"]').forEach(qtdInput => {
-                if (parseInt(qtdInput.value) > 0) {
-                    temQuantidade = true;
-                }
-            });
-            if (!temQuantidade) {
-                alert('Adicione ao menos uma quantidade em algum item do pedido.');
-                return false;
-            }
-            return true;
+        });
+        if (!temQuantidade) {
+            alert('Adicione ao menos uma quantidade em algum item do pedido.');
+            return false;
         }
-    </script>
-</body>
-</html>
+        return true;
+    }
+</script>
 {% endblock %}
