@@ -115,23 +115,22 @@ Forma de Pagamento: {next((fp['nome'] for fp in formas_pagamento if fp['id'] == 
 @app.route('/pedido', methods=['POST'])
 @login_required
 def pedido():
-    empresa_selecionada = session.get('empresa_selecionada')
-    if not empresa_selecionada:
-        flash("Selecione uma empresa antes de continuar.", "warning")
-        return redirect(url_for('selecionar_empresa'))
-    
-    if request.is_json:
-        data = request.get_json()
-        cnpj = data['cnpj']
-        razao_social = data['razao']
-        forma_pagamento_id = int(data['forma_pagamento'])
-        desconto = float(data.get('desconto', 0.0))
-        itens = data['itens']
-    else:
+    try:
+        empresa_selecionada = session.get('empresa_selecionada')
+        if not empresa_selecionada:
+            flash("Selecione uma empresa antes de continuar.", "warning")
+            return redirect(url_for('selecionar_empresa'))
+        
+        # Obter dados do formulário
         cnpj = request.form['cnpj']
         razao_social = request.form['razao']
+        telefone = request.form.get('telefone', '')
+        email = request.form.get('email', '')
+        endereco = request.form.get('endereco', '')
         forma_pagamento_id = int(request.form['forma_pagamento'])
         desconto = float(request.form.get('desconto', 0.0))
+        
+        # Processar itens
         itens = []
         codigos = request.form.getlist('codigo[]')
         for i, codigo in enumerate(codigos):
@@ -142,15 +141,83 @@ def pedido():
                     quantidades = {tam: int(request.form.get(f"qtd_{i}_{tam}", "0") or "0") for tam in tamanhos}
                     if any(qtd > 0 for qtd in quantidades.values()):
                         itens.append({"codigo": codigo, "quantidades": quantidades})
-
-    pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj, forma_pagamento_id, desconto)
-    for item in itens:
-        pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
-    salvar_pedido(pedido_atual)
-    if pedido_atual.email:
-        enviar_email_pedido(pedido_atual)
-    flash("Novo pedido criado com sucesso!", "success")
-    return redirect(url_for('lista_pedidos'))
+        
+        # Criar e salvar pedido
+        pedido_atual = Pedido(
+            empresas[empresa_selecionada], 
+            razao_social, 
+            cnpj, 
+            forma_pagamento_id, 
+            desconto,
+            telefone=telefone,
+            email=email,
+            endereco=endereco
+        )
+        
+        for item in itens:
+            pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
+        
+   
+        salvar_pedido(pedido_atual)
+        
+        if pedido_atual.email:
+            enviar_email_pedido(pedido_atual)
+        
+        flash("Novo pedido criado com sucesso!", "success")
+        
+        # Buscar os pedidos atualizados diretamente do banco
+        conn = psycopg2.connect(DB_CONNECTION_STRING)
+        c = conn.cursor()
+        c.execute("""
+            SELECT p.id, p.empresa_nome, p.cnpj_loja, p.data_compra, p.forma_pagamento_id, p.desconto, p.itens, l.razao_social
+            FROM pedidos p
+            JOIN lojas l ON p.cnpj_loja = l.cnpj
+            WHERE p.empresa_nome = %s
+            ORDER BY p.id DESC
+        """, (empresa_selecionada,))
+        pedidos_raw = c.fetchall()
+        conn.close()
+        
+        # Processar os pedidos como você já faz
+        catalogo = empresas[empresa_selecionada].catalogo
+        pedidos = []
+        for row in pedidos_raw:
+            itens = json.loads(row[6])
+            total_geral = 0
+            for item in itens:
+                codigo = item['codigo']
+                quantidades = item['quantidades']
+                valor_unit = empresas[empresa_selecionada].catalogo.get(codigo, {}).get('valor', 0)
+                total_geral += valor_unit * sum(quantidades.values())
+            desconto_percentual = row[5]
+            desconto_valor = total_geral * (desconto_percentual / 100)
+            total_liquido = total_geral - desconto_valor
+            pedidos.append({
+                "id": row[0],
+                "empresa_nome": row[1],
+                "cnpj_loja": row[2],
+                "data_compra": row[3],
+                "forma_pagamento_id": row[4],
+                "desconto": desconto_percentual,
+                "desconto_valor": desconto_valor,
+                "itens": itens,
+                "razao_social": row[7],
+                "total_geral": total_geral,
+                "total_liquido": total_liquido
+            })
+        
+        # Renderizar o template com os pedidos atualizados
+        return render_template('lista_pedidos.html', 
+                            catalogo_data=catalogo, 
+                            pedidos=pedidos, 
+                            empresa_selecionada=empresa_selecionada, 
+                            empresas=empresas, 
+                            formas_pagamento=formas_pagamento)
+        
+    except Exception as e:
+        logger.error(f"Erro ao processar pedido: {str(e)}", exc_info=True)
+        flash("Erro ao processar o pedido. Por favor, tente novamente.", "danger")
+        return redirect(url_for('lista_pedidos'))
 
 @app.route('/favicon.ico')
 def favicon():

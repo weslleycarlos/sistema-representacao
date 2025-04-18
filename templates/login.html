@@ -5,56 +5,179 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Sistema de Representação</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --light-gray: #f8f9fa;
+        }
+        
         body {
-            background-color: #f8f9fa;
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f7fa;
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(46, 204, 113, 0.1));
         }
+        
         .login-container {
             background-color: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
+        
+        .login-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+        }
+        
         .login-header {
             text-align: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .login-header h2 {
+            color: var(--secondary-color);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-header p {
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+        
+        .login-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            display: block;
+            filter: brightness(0) invert(0.3);
+        }
+        
+        .form-control {
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .btn-login {
+            background-color: var(--primary-color);
+            border: none;
+            padding: 12px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-login:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .alert {
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+        
+        .footer-links {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .footer-links a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .footer-links a:hover {
+            color: #2980b9;
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 576px) {
+            .login-container {
+                padding: 2rem 1.5rem;
+                margin: 0 15px;
+            }
+            
+            .login-header h2 {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
+    <div class="login-container animate-fade">
+        <img src="/static/logo.png" alt="Logo" class="login-logo">
         <div class="login-header">
             <h2>Sistema de Representação</h2>
             <p>Faça login para continuar</p>
         </div>
+        
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} me-2"></i>
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
+        
         <form method="POST" action="{{ url_for('login') }}">
             <div class="mb-3">
                 <label for="usuario" class="form-label">Usuário</label>
-                <input type="text" class="form-control" id="usuario" name="usuario" required>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                    <input type="text" class="form-control" id="usuario" name="usuario" placeholder="Digite seu usuário" required>
+                </div>
             </div>
-            <div class="mb-3">
+            <div class="mb-4">
                 <label for="senha" class="form-label">Senha</label>
-                <input type="password" class="form-control" id="senha" name="senha" required>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    <input type="password" class="form-control" id="senha" name="senha" placeholder="Digite sua senha" required>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary w-100">Entrar</button>
+            <button type="submit" class="btn btn-primary btn-login w-100">
+                <i class="fas fa-sign-in-alt me-2"></i> Entrar
+            </button>
         </form>
+        
+        <div class="footer-links mt-4">
+            <a href="#"><i class="fas fa-question-circle me-1"></i> Precisa de ajuda?</a>
+        </div>
     </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Adiciona classe de animação após o carregamento
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.login-container');
+            container.classList.add('animate-fade');
+        });
+    </script>
 </body>
 </html>

@@ -94,7 +94,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="novoPedidoForm">
+                <form id="novoPedidoForm" method="POST" action="{{ url_for('pedido') }}">
                     <div class="row mb-4">
                         <div class="col-md-4">
                             <label for="cnpj" class="form-label">CNPJ</label>
@@ -105,19 +105,35 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-4">
                             <label for="razao" class="form-label">Razão Social</label>
                             <input type="text" class="form-control" id="razao" name="razao" required>
                         </div>
                     </div>
                     
+                    <!-- Novos campos de contato -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="telefone" class="form-label">Telefone</label>
+                            <input type="text" class="form-control" id="telefone" name="telefone">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="email" class="form-label">E-mail</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="endereco" class="form-label">Endereço</label>
+                            <input type="text" class="form-control" id="endereco" name="endereco">
+                        </div>
+                    </div>
+                    
+                    <!-- Restante do formulário permanece igual -->
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="mb-0"><i class="fas fa-list-ul me-2"></i>Itens do Pedido</h5>
                         <button type="button" class="btn btn-success" id="btnAdicionarItem">
                             <i class="fas fa-plus me-1"></i> Adicionar Item
                         </button>
                     </div>
-                    
                     <div class="table-responsive mb-4">
                         <table class="table table-bordered" id="tabelaItens">
                             <thead class="table-light">
@@ -273,11 +289,14 @@
             for (const pedido of pedidosPendentes) {
                 statusSpan.textContent = `Sincronizando ${sincronizados + erros + 1} de ${pedidosPendentes.length} pedidos...`;
                 try {
-                    const formData = new FormData();
-                    formData.append('cnpj', pedido.data.cnpj || '');
-                    formData.append('razao', pedido.data.razao || '');
-                    formData.append('forma_pagamento', pedido.data.forma_pagamento || '');
-                    formData.append('desconto', pedido.data.desconto || '0');
+            const formData = new FormData();
+            formData.append('cnpj', pedido.data.cnpj || '');
+            formData.append('razao', pedido.data.razao || '');
+            formData.append('telefone', pedido.data.telefone || '');
+            formData.append('email', pedido.data.email || '');
+            formData.append('endereco', pedido.data.endereco || '');
+            formData.append('forma_pagamento', pedido.data.forma_pagamento || '');
+            formData.append('desconto', pedido.data.desconto || '0');
                     pedido.data.itens.forEach((item, index) => {
                         formData.append('codigo[]', item.codigo);
                         Object.entries(item.quantidades).forEach(([tam, qtd]) => {
@@ -428,20 +447,48 @@
     }
 
     async function buscarItem(input, index) {
-        try {
-            const codigo = input.value;
-            if (!codigo) return;
-            const catalogo = isOffline ? await carregarCatalogoOffline() : window.catalogoData;
+    try {
+        const codigo = input.value;
+        if (!codigo) return;
+        
+        // Verifica se está offline primeiro
+        if (isOffline) {
+            const catalogo = await carregarCatalogoOffline();
             if (catalogo && catalogo[codigo]) {
                 processarItem(catalogo[codigo], input, index);
             } else {
-                alert('Item não encontrado no catálogo.');
+                alert('Item não encontrado no catálogo offline.');
             }
-        } catch (error) {
-            console.error('Erro ao buscar item:', error);
-            alert('Erro ao buscar item: ' + error.message);
+            return;
         }
+        
+        // Se online, busca no catálogo da empresa selecionada
+        const empresaSelecionada = '{{ empresa_selecionada }}';
+        if (!empresaSelecionada) {
+            alert('Nenhuma empresa selecionada.');
+            return;
+        }
+        
+        const response = await fetch(`/buscar_catalogo/${encodeURIComponent(empresaSelecionada)}`);
+        const catalogo = await response.json();
+        
+        if (catalogo.error) {
+            alert('Erro ao carregar catálogo: ' + catalogo.error);
+            return;
+        }
+        
+        if (catalogo[codigo]) {
+            processarItem(catalogo[codigo], input, index);
+            // Atualiza o catálogo offline
+            await salvarCatalogoLocal();
+        } else {
+            alert('Item não encontrado no catálogo.');
+        }
+    } catch (error) {
+        console.error('Erro ao buscar item:', error);
+        alert('Erro ao buscar item: ' + error.message);
     }
+}
 
     function processarItem(data, input, index) {
         try {
@@ -546,7 +593,12 @@
             if (data.error) {
                 alert('Erro ao consultar CNPJ: ' + data.error);
             } else {
+                
                 document.getElementById('razao').value = data.nome || '';
+                document.getElementById('endereco').value = data.logradouro || '';
+                document.getElementById('email').value = data.email || '';
+                document.getElementById('telefone').value = data.telefone || '';
+                console.log('CNPJ consultado com sucesso:', data);
             }
         } catch (error) {
             console.error('Erro ao consultar CNPJ:', error);
@@ -555,55 +607,74 @@
     }
 
     function validarFormulario() {
-        try {
-            const rows = document.querySelectorAll('#tabelaItens tbody tr');
-            if (rows.length === 0) {
-                alert('Adicione pelo menos um item ao pedido.');
-                return false;
-            }
-            for (const row of rows) {
-                const codigo = row.querySelector('input[name="codigo[]"]').value;
-                if (!codigo) {
-                    alert('Todos os itens devem ter um código válido.');
-                    return false;
-                }
-                const qtdInputs = row.querySelectorAll('input[name^="qtd_"]');
-                let hasQuantity = false;
-                for (const qtdInput of qtdInputs) {
-                    if (parseInt(qtdInput.value) > 0) {
-                        hasQuantity = true;
-                        break;
-                    }
-                }
-                if (!hasQuantity) {
-                    alert('Cada item deve ter pelo menos uma quantidade maior que zero.');
-                    return false;
-                }
-            }
-            return true;
-        } catch (error) {
-            console.error('Erro ao validar formulário:', error);
+    try {
+        const rows = document.querySelectorAll('#tabelaItens tbody tr');
+        if (rows.length === 0) {
+            alert('Adicione pelo menos um item ao pedido.');
             return false;
         }
+        
+        const cnpj = document.getElementById('cnpj').value;
+        if (!cnpj) {
+            alert('CNPJ é obrigatório.');
+            return false;
+        }
+        
+        const razao = document.getElementById('razao').value;
+        if (!razao) {
+            alert('Razão Social é obrigatória.');
+            return false;
+        }
+        
+        for (const row of rows) {
+            const codigo = row.querySelector('input[name="codigo[]"]').value;
+            if (!codigo) {
+                alert('Todos os itens devem ter um código válido.');
+                return false;
+            }
+            
+            let hasQuantity = false;
+            const qtdInputs = row.querySelectorAll('input[name^="qtd_"]');
+            for (const qtdInput of qtdInputs) {
+                if (parseInt(qtdInput.value) > 0) {
+                    hasQuantity = true;
+                    break;
+                }
+            }
+            
+            if (!hasQuantity) {
+                alert('Cada item deve ter pelo menos uma quantidade maior que zero.');
+                return false;
+            }
+        }
+        return true;
+    } catch (error) {
+        console.error('Erro ao validar formulário:', error);
+        return false;
     }
+}
+
 
     async function salvarPedidoOffline(event) {
-        event.preventDefault();
-        if (!validarFormulario()) return;
-        try {
-            const form = document.getElementById('novoPedidoForm');
-            const formData = new FormData(form);
-            const db = await openDB();
-            const pedido = {
-                id: Date.now(),
-                data: {
-                    cnpj: formData.get('cnpj'),
-                    razao: formData.get('razao'),
-                    forma_pagamento: formData.get('forma_pagamento'),
-                    desconto: formData.get('desconto'),
-                    itens: []
-                }
-            };
+    event.preventDefault();
+    if (!validarFormulario()) return;
+    try {
+        const form = document.getElementById('novoPedidoForm');
+        const formData = new FormData(form);
+        const db = await openDB();
+        const pedido = {
+            id: Date.now(),
+            data: {
+                cnpj: formData.get('cnpj'),
+                razao: formData.get('razao'),
+                telefone: formData.get('telefone'),
+                email: formData.get('email'),
+                endereco: formData.get('endereco'),
+                forma_pagamento: formData.get('forma_pagamento'),
+                desconto: formData.get('desconto'),
+                itens: []
+            }
+        };
             const rows = document.querySelectorAll('#tabelaItens tbody tr');
             rows.forEach((row, index) => {
                 const codigo = row.querySelector('input[name="codigo[]"]').value;
@@ -627,14 +698,15 @@
             itemCount = 0;
             await renderPedidosPendentes();
         } catch (error) {
-            console.error('Erro ao salvar pedido offline:', error);
-            alert('Erro ao salvar pedido offline: ' + error.message);
-        }
+        console.error('Erro ao salvar pedido offline:', error);
+        alert('Erro ao salvar pedido offline: ' + error.message);
     }
+}
 
-    document.addEventListener('DOMContentLoaded', async () => {
-        console.log('DOM carregado');
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOM carregado');
 
+    
         if (!checkBootstrap()) {
             console.warn('Problema com Bootstrap detectado');
         }
@@ -650,13 +722,13 @@
         }
 
         const form = document.getElementById('novoPedidoForm');
-        if (form) {
-            form.addEventListener('submit', event => {
+    if (form) {
+        form.addEventListener('submit', async function(event) {
+            if (isOffline) {
                 event.preventDefault();
-                if (isOffline) {
-                    if (validarFormulario()) {
-                        salvarPedidoOffline(event);
-                    }
+                if (validarFormulario()) {
+                    await salvarPedidoOffline(event);
+                }
                 } else {
                     form.submit();
                 }

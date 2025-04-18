@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-representacao-v10';
+const CACHE_NAME = 'sistema-representacao-v0.1';
 const urlsToCache = [
     '/',
     '/static/logo.png',
