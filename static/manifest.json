@@ -1,0 +1,20 @@
+{
+    "name": "Sistema de Representação",
+    "short_name": "Sistema",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#343a40",
+    "theme_color": "#495057",
+    "icons": [
+        {
+            "src": "/static/logo.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/static/logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

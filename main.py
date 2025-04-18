@@ -12,6 +12,7 @@ import bcrypt
 from config import DB_CONNECTION_STRING, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
 import smtplib
 from email.mime.text import MIMEText
+from flask import send_from_directory
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "P@ssw0rd2025")
@@ -118,37 +119,54 @@ def pedido():
     if not empresa_selecionada:
         flash("Selecione uma empresa antes de continuar.", "warning")
         return redirect(url_for('selecionar_empresa'))
-    if request.method == 'POST':
+    
+    if request.is_json:
+        data = request.get_json()
+        cnpj = data['cnpj']
+        razao_social = data['razao']
+        forma_pagamento_id = int(data['forma_pagamento'])
+        desconto = float(data.get('desconto', 0.0))
+        itens = data['itens']
+    else:
         cnpj = request.form['cnpj']
         razao_social = request.form['razao']
         forma_pagamento_id = int(request.form['forma_pagamento'])
-        desconto = float(request.form.get('desconto', 0.0))  # Agora em percentual
-        endereco = request.form.get('endereco', '')
-        email = request.form.get('email', '')
-        telefone = request.form.get('telefone', '')
+        desconto = float(request.form.get('desconto', 0.0))
         itens = []
         codigos = request.form.getlist('codigo[]')
-        logger.info(f"Codigos recebidos: {codigos}")
         for i, codigo in enumerate(codigos):
             if codigo:
                 item = empresas[empresa_selecionada].get_item(codigo)
                 if item:
                     tamanhos = item["tamanhos"]
                     quantidades = {tam: int(request.form.get(f"qtd_{i}_{tam}", "0") or "0") for tam in tamanhos}
-                    logger.info(f"Quantidades para {codigo}: {quantidades}")
                     if any(qtd > 0 for qtd in quantidades.values()):
                         itens.append({"codigo": codigo, "quantidades": quantidades})
-        if not itens:
-            flash("Adicione pelo menos um item com quantidade ao pedido.", "warning")
-            return redirect(url_for('lista_pedidos'))
-        pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj, forma_pagamento_id, desconto, endereco, email, telefone)
-        for item in itens:
-            pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
-        salvar_pedido(pedido_atual)
-        if pedido_atual.email:
-            enviar_email_pedido(pedido_atual)
-        flash("Novo pedido criado com sucesso!", "success")
+
+    pedido_atual = Pedido(empresas[empresa_selecionada], razao_social, cnpj, forma_pagamento_id, desconto)
+    for item in itens:
+        pedido_atual.adicionar_item(item["codigo"], item["quantidades"])
+    salvar_pedido(pedido_atual)
+    if pedido_atual.email:
+        enviar_email_pedido(pedido_atual)
+    flash("Novo pedido criado com sucesso!", "success")
     return redirect(url_for('lista_pedidos'))
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory('.', 'favicon.ico')
+
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory('.', 'sw.js')
+
+
+@app.route('/buscar_catalogo/<empresa>', methods=['GET'])
+@login_required
+def buscar_catalogo(empresa):
+    if empresa in empresas:
+        return jsonify(empresas[empresa].catalogo)
+    return jsonify({"erro": "Empresa não encontrada"}), 404
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -226,7 +244,8 @@ def lista_pedidos():
     """, (empresa_selecionada,))
     pedidos_raw = c.fetchall()
     conn.close()
-    
+    # Corrigir a obtenção do catálogo
+    catalogo = empresas[empresa_selecionada].catalogo  # Usar o catálogo diretamente do objeto empresa
     pedidos = []
     for row in pedidos_raw:
         itens = json.loads(row[6])
@@ -252,43 +271,7 @@ def lista_pedidos():
             "total_geral": total_geral,
             "total_liquido": total_liquido
         })
-    return render_template('lista_pedidos.html', pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas, formas_pagamento=formas_pagamento)
-
-@app.route('/buscar_item/<empresa_nome>/<codigo>', methods=['GET'])
-@login_required
-def buscar_item(empresa_nome, codigo):
-    try:
-        logger.info(f"Buscando item: empresa={empresa_nome}, codigo={codigo}")
-        empresa = empresas.get(empresa_nome)
-        if not empresa:
-            logger.error(f"Empresa {empresa_nome} não encontrada")
-            return jsonify({"erro": "Empresa não encontrada"}), 404
-        
-        logger.info(f"Catálogo da empresa {empresa_nome}: {empresa.catalogo}")
-        item = empresa.get_item(codigo)
-        if item:
-            logger.info(f"Item encontrado: {item}")
-            return jsonify(item)
-        
-        logger.warning(f"Item {codigo} não encontrado no catálogo de {empresa_nome}")
-        return jsonify({"erro": "Item não encontrado"}), 404
-    except Exception as e:
-        logger.error(f"Erro interno ao buscar item: {str(e)}", exc_info=True)
-        return jsonify({"erro": "Erro interno no servidor"}), 500
-
-@app.route('/adicionar_item', methods=['POST'])
-@login_required
-def adicionar_item():
-    pedido_atual = carregar_ultimo_pedido(empresas)
-    if pedido_atual:
-        codigo = request.form['codigo']
-        item = pedido_atual.empresa.get_item(codigo)
-        if item:
-            quantidades = {tam: int(request.form.get(f"qtd_{tam}", "0") or "0") for tam in item["tamanhos"]}
-            if any(quantidades.values()):
-                pedido_atual.adicionar_item(codigo, quantidades)
-                salvar_pedido(pedido_atual)
-    return redirect(url_for('lista_pedidos'))
+    return render_template('lista_pedidos.html', catalogo_data=catalogo, pedidos=pedidos, empresa_selecionada=empresa_selecionada, empresas=empresas, formas_pagamento=formas_pagamento)
 
 @app.route('/remover_item/<int:index>')
 @login_required
@@ -300,6 +283,10 @@ def remover_item(index):
     return redirect(url_for('lista_pedidos'))
 
 TIPOS_GRADE = ["numerico", "alfabetico", "misto"]
+
+@app.route('/ping', methods=['HEAD', 'GET'])
+def ping():
+    return '', 200
 
 @app.route('/gerenciar_empresas', methods=['GET', 'POST'])
 @login_required

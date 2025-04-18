@@ -1,77 +1,113 @@
 {% extends "base.html" %}
 {% block title %}Gerenciar Empresas - Sistema de Representação{% endblock %}
 {% block content %}
-<h1>Gerenciar Empresas</h1>
-<h3>Itens no Catálogo</h3>
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th style="width: 15%;">Código</th>
-            <th style="width: 35%;">Descritivo</th>
-            <th style="width: 15%;">Valor (R$)</th>
-            <th style="width: 20%;">Tamanhos</th>
-            <th style="width: 15%;">Ação</th>
-        </tr>
-    </thead>
-    <tbody id="catalogoTbody">
-        {% for codigo, item in empresas[empresa_selecionada].catalogo.items() %}
-        <tr>
-            <td>{{ codigo }}</td>
-            <td>{{ item.descritivo }}</td>
-            <td>{{ item.valor }}</td>
-            <td>{{ item.tamanhos | join(', ') }}</td>
-            <td>
-                <form method="POST" action="{{ url_for('remover_item_catalogo_route', empresa_nome=empresa_selecionada, codigo=codigo) }}" style="display:inline;">
-                    <button type="submit" class="btn btn-danger btn-sm">Remover</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="animate-fade">
+    <div class="page-header">
+        <h1><i class="fas fa-building me-2"></i>Gerenciar Empresas</h1>
+        <a href="{{ url_for('lista_pedidos') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Voltar
+        </a>
+    </div>
 
-<h3>Adicionar Item ao Catálogo</h3>
-<form method="POST" action="{{ url_for('gerenciar_empresas') }}">
-    <input type="hidden" name="empresa_nome" value="{{ empresa_selecionada }}">
-    <div class="row mb-3">
-        <div class="col-md-3">
-            <label for="codigo" class="form-label">Código</label>
-            <input type="text" class="form-control form-control-sm" id="codigo" name="codigo" required>
+    <div class="card mb-4 animate-fade">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Itens no Catálogo</h5>
         </div>
-        <div class="col-md-4">
-            <label for="descritivo" class="form-label">Descritivo</label>
-            <input type="text" class="form-control form-control-sm" id="descritivo" name="descritivo" required>
-        </div>
-        <div class="col-md-2">
-            <label for="valor" class="form-label">Valor (R$)</label>
-            <input type="number" class="form-control form-control-sm" id="valor" name="valor" step="0.01" required>
-        </div>
-        <div class="col-md-3">
-            <label for="tamanhos" class="form-label">Tamanhos (separados por vírgula)</label>
-            <input type="text" class="form-control form-control-sm" id="tamanhos" name="tamanhos" required>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="15%">Código</th>
+                            <th width="35%">Descritivo</th>
+                            <th width="15%">Valor (R$)</th>
+                            <th width="20%">Tamanhos</th>
+                            <th width="15%">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="catalogoTbody">
+                        {% for codigo, item in empresas[empresa_selecionada].catalogo.items() %}
+                        <tr>
+                            <td>{{ codigo }}</td>
+                            <td>{{ item.descritivo }}</td>
+                            <td>{{ "R$ %.2f"|format(item.valor) }}</td>
+                            <td>
+                                {% for tam in item.tamanhos %}
+                                <span class="badge bg-secondary me-1">{{ tam }}</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ url_for('remover_item_catalogo_route', empresa_nome=empresa_selecionada, codigo=codigo) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash-alt me-1"></i> Remover
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-    <button type="submit" class="btn btn-primary">Adicionar Item</button>
-</form>
 
-<h3>Adicionar Empresa</h3>
-<form method="POST" action="{{ url_for('gerenciar_empresas') }}">
-    <div class="row mb-3">
-        <div class="col-md-6">
-            <label for="nome" class="form-label">Nome da Empresa</label>
-            <input type="text" class="form-control form-control-sm" id="nome" name="nome" required>
+    <div class="card mb-4 animate-fade">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Adicionar Item ao Catálogo</h5>
         </div>
-        <div class="col-md-6">
-            <label for="tipo_grade" class="form-label">Tipo de Grade</label>
-            <select class="form-select form-select-sm" id="tipo_grade" name="tipo_grade" required>
-                {% for tipo in tipos_grade %}
-                <option value="{{ tipo }}">{{ tipo }}</option>
-                {% endfor %}
-            </select>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('gerenciar_empresas') }}">
+                <input type="hidden" name="empresa_nome" value="{{ empresa_selecionada }}">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="codigo" class="form-label">Código</label>
+                        <input type="text" class="form-control" id="codigo" name="codigo" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="descritivo" class="form-label">Descritivo</label>
+                        <input type="text" class="form-control" id="descritivo" name="descritivo" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="valor" class="form-label">Valor (R$)</label>
+                        <input type="number" class="form-control" id="valor" name="valor" step="0.01" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="tamanhos" class="form-label">Tamanhos (separados por vírgula)</label>
+                        <input type="text" class="form-control" id="tamanhos" name="tamanhos" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Adicionar Item
+                </button>
+            </form>
         </div>
     </div>
-    <button type="submit" class="btn btn-primary">Salvar Empresa</button>
-</form>
 
-<a href="{{ url_for('lista_pedidos') }}" class="btn btn-secondary mt-3">Voltar</a>
+    <div class="card animate-fade">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Adicionar Nova Empresa</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('gerenciar_empresas') }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="nome" class="form-label">Nome da Empresa</label>
+                        <input type="text" class="form-control" id="nome" name="nome" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="tipo_grade" class="form-label">Tipo de Grade</label>
+                        <select class="form-select" id="tipo_grade" name="tipo_grade" required>
+                            {% for tipo in tipos_grade %}
+                            <option value="{{ tipo }}">{{ tipo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Salvar Empresa
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
